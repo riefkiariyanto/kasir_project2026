@@ -31,9 +31,9 @@ abstract final class AppStrings {
   static const String navHome = 'Beranda';
   static const String navTransactions = 'Transaksi';
   static const String navOrders = 'Pesanan';
-  static const String navFinance = 'Kas Pegawai';
+  static const String navFinance = 'Keuangan';
   static const String navLoan = 'Pinjam Uang';
-  static const String navTransfer = 'Transfer Tunai';
+  static const String navTransfer = 'Setor Tunai';
   static const String adminGreeting = 'Kelola toko dan pantau penjualan';
   static const String comingSoon = 'Fitur belum tersedia';
   static const String ok = 'OK';
@@ -56,9 +56,9 @@ abstract final class AppStrings {
   static const String cancel = 'Batal';
   static const String back = 'Kembali';
 
-  static const String financeHeader = 'Kas Pegawai';
+  static const String financeHeader = 'Keuangan';
   static const String financeLoan = 'Pinjam Uang';
-  static const String financeTransfer = 'Transfer Tunai';
+  static const String financeTransfer = 'Setor Tunai';
   static const String financeLoanHint = 'Pinjam tunai — kurangi dari Pendapatan Tunai';
   static const String financeTransferHint = 'Kurangi Pendapatan QRIS, tambah Pendapatan Tunai';
   static const String financeEmployee = 'Pegawai';
@@ -70,9 +70,9 @@ abstract final class AppStrings {
   static const String financeSaved = 'Catatan berhasil disimpan';
   static const String financeEmpty = 'Belum ada catatan kas';
   static const String financeTotalLoan = 'Total Pinjam Tunai';
-  static const String financeTotalTransfer = 'Total Transfer';
+  static const String financeTotalTransfer = 'Total Setor Tunai';
   static const String financeLoanOf = 'Pinjam';
-  static const String financeTransferOf = 'Transfer';
+  static const String financeTransferOf = 'Setor';
 
   static const String ordersHeader = 'Riwayat Pesanan';
   static const String ordersEmpty = 'Belum ada pesanan';
@@ -103,6 +103,13 @@ abstract final class AppStrings {
   static const String categoryAddTitle = 'Kategori Baru';
   static const String categoryNameHint = 'Nama kategori';
   static const String categoryAdd = 'Tambah';
+
+  static const String storeDataTitle = 'Data Toko';
+  static const String storeEditTitle = 'Edit Data Toko';
+  static const String storeNameLabel = 'Nama Toko';
+  static const String storeAddressLabel = 'Alamat Toko';
+  static const String storePhoneLabel = 'Nomor HP Toko';
+  static const String storeSaved = 'Data toko berhasil disimpan';
 
   static const String accountSectionTitle = 'Akun';
   static const String changePasswordTitle = 'Ganti Password';

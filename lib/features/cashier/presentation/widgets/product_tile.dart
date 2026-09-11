@@ -79,7 +79,7 @@ class ProductTile extends StatelessWidget {
                             product.tag!,
                             style: const TextStyle(
                               color: AppColors.onPanel,
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -98,7 +98,7 @@ class ProductTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.onSurface,
                       ),
@@ -107,7 +107,7 @@ class ProductTile extends StatelessWidget {
                     Text(
                       CurrencyFormatter.rupiah(product.price),
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),

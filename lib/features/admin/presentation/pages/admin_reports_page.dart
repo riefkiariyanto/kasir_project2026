@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/cart_item.dart';
@@ -57,22 +57,11 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   bool _donutByCategory = false;
   String? _employeeFilter;
 
-  bool _isSameDate(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDate(DateTime a, DateTime b) => AppDateUtils.isSameDate(a, b);
 
-  bool _isSameMonth(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month;
+  bool _isSameMonth(DateTime a, DateTime b) => AppDateUtils.isSameMonth(a, b);
 
-  DateTime _startOfWeek(DateTime date) {
-    final DateTime day = DateTime(date.year, date.month, date.day);
-    return day.subtract(Duration(days: day.weekday - DateTime.monday));
-  }
-
-  bool _isSameWeek(DateTime a, DateTime b) {
-    final DateTime startA = _startOfWeek(a);
-    final DateTime startB = _startOfWeek(b);
-    return _isSameDate(startA, startB);
-  }
+  bool _isSameWeek(DateTime a, DateTime b) => AppDateUtils.isSameWeek(a, b);
 
   List<Order> get _filteredOrders {
     final List<Order> all = widget.orderRepository.fetchAll();
@@ -286,7 +275,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       case _ReportFilterMode.day:
         return _formatDate(anchor);
       case _ReportFilterMode.week:
-        final DateTime start = _startOfWeek(anchor);
+        final DateTime start = AppDateUtils.startOfWeek(anchor);
         final DateTime end = start.add(const Duration(days: 6));
         return '${_formatDate(start)} - ${_formatDate(end)}';
       case _ReportFilterMode.month:
@@ -333,12 +322,6 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         title: BrandTitle(text: AppStrings.adminDashboardReport),
         actions: <Widget>[
           const ThemeToggleButton(),
-          IconButton(
-            onPressed: () =>
-                showComingSoonDialog(context, AppStrings.cashierInbox),
-            tooltip: AppStrings.cashierInbox,
-            icon: const Icon(Icons.mail_outline),
-          ),
         ],
       ),
       bottomNavigationBar: AdminBottomNav(
@@ -831,10 +814,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
     );
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/'
-      '${date.month.toString().padLeft(2, '0')}/'
-      '${date.year}';
+  String _formatDate(DateTime date) => AppDateUtils.formatDate(date);
 }
 
 class _ReportCard extends StatelessWidget {

@@ -191,7 +191,7 @@ void main() {
     await tester.pumpWidget(wrap(const CashierPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.inventory_2_outlined));
+    await tester.tap(find.byIcon(Icons.history_outlined));
     await tester.pumpAndSettle();
 
     expect(find.text(AppStrings.ordersEmpty), findsNothing);
@@ -238,7 +238,7 @@ void main() {
     await tester.pumpWidget(wrap(const CashierPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.inventory_2_outlined));
+    await tester.tap(find.byIcon(Icons.history_outlined));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rp40.000'));
     await tester.pumpAndSettle();

@@ -25,10 +25,12 @@ class TransactionPage extends StatefulWidget {
     super.key,
     this.productRepository = const ProductRepository(),
     this.orderRepository = const OrderRepository(),
+    this.initialCategory,
   });
 
   final ProductRepository productRepository;
   final OrderRepository orderRepository;
+  final String? initialCategory;
 
   @override
   State<TransactionPage> createState() => _TransactionPageState();
@@ -39,7 +41,7 @@ class _TransactionPageState extends State<TransactionPage> {
   final CartController _cart = CartController();
 
   String _query = '';
-  String? _selectedCategory;
+  late String? _selectedCategory = widget.initialCategory;
   PaymentMethod? _paymentMethod;
 
   List<String> get _categories =>
@@ -107,6 +109,10 @@ class _TransactionPageState extends State<TransactionPage> {
       Navigator.of(context).pop(RouteResults.openOrders);
       return;
     }
+    if (index == 3) {
+      Navigator.of(context).pop(RouteResults.openFinance);
+      return;
+    }
 
     showComingSoonDialog(context, CashierBottomNav.items[index].label);
   }
@@ -133,12 +139,6 @@ class _TransactionPageState extends State<TransactionPage> {
         title: BrandTitle(text: AppStrings.navTransactions),
         actions: <Widget>[
           const ThemeToggleButton(),
-          IconButton(
-            onPressed: () =>
-                showComingSoonDialog(context, AppStrings.cashierInbox),
-            tooltip: AppStrings.cashierInbox,
-            icon: const Icon(Icons.mail_outline),
-          ),
         ],
       ),
       bottomNavigationBar: CashierBottomNav(

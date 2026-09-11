@@ -5,7 +5,7 @@ import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/app_routes.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_dialog.dart';
+import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/category_repository.dart';
@@ -44,6 +44,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   String _ordersSearchQuery = '';
   PaymentMethod? _ordersFilterMethod;
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
+  bool _ordersGridView = false;
 
   void _pushHistory(int from) {
     _navHistory.add(from);
@@ -67,21 +68,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   bool _isSameDate(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+      AppDateUtils.isSameDate(a, b);
 
   bool _isSameMonth(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month;
+      AppDateUtils.isSameMonth(a, b);
 
-  DateTime _startOfWeek(DateTime date) {
-    final DateTime day = DateTime(date.year, date.month, date.day);
-    return day.subtract(Duration(days: day.weekday - DateTime.monday));
-  }
-
-  bool _isSameWeek(DateTime a, DateTime b) {
-    final DateTime startA = _startOfWeek(a);
-    final DateTime startB = _startOfWeek(b);
-    return _isSameDate(startA, startB);
-  }
+  bool _isSameWeek(DateTime a, DateTime b) =>
+      AppDateUtils.isSameWeek(a, b);
 
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
@@ -135,10 +128,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  String _formatFilterDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/'
-      '${date.month.toString().padLeft(2, '0')}/'
-      '${date.year}';
+  String _formatFilterDate(DateTime date) => AppDateUtils.formatDate(date);
 
   Future<void> _openTransaction() async {
     final Object? result = await Navigator.of(
@@ -163,24 +153,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _onNavSelected(result);
     } else if (result is Map<String, dynamic> && mounted) {
       final int targetIndex = (result['index'] as int?) ?? 3;
-      setState(() {
-        if (targetIndex == 3) {
+      if (targetIndex == 1) {
+        _openReports();
+      } else if (targetIndex == 2) {
+        _openCatalogFromHome();
+      } else if (targetIndex == 3) {
+        setState(() {
           _pushHistory(1);
-        }
-        _navIndex = targetIndex;
-        if (result.containsKey('employee')) {
-          _ordersFilterEmployee = result['employee'] as String?;
-        }
-        if (result.containsKey('date')) {
-          _ordersFilterDate = result['date'] as DateTime?;
-        }
-        if (result.containsKey('method')) {
-          _ordersFilterMethod = result['method'] as PaymentMethod?;
-        }
-        if (result.containsKey('filterMode')) {
-          // Reset/apply filter mode if passed
-        }
-      });
+          _navIndex = 3;
+          if (result.containsKey('employee')) {
+            _ordersFilterEmployee = result['employee'] as String?;
+          }
+          if (result.containsKey('date')) {
+            _ordersFilterDate = result['date'] as DateTime?;
+          }
+          if (result.containsKey('method')) {
+            _ordersFilterMethod = result['method'] as PaymentMethod?;
+          }
+        });
+      } else {
+        setState(() {
+          _navIndex = targetIndex;
+          _ordersFilterEmployee = null;
+          _ordersFilterDate = null;
+          _ordersFilterMethod = null;
+          _ordersSearchQuery = '';
+          _ordersFilterPeriod = _OrdersFilterPeriod.all;
+        });
+      }
     }
   }
 
@@ -193,6 +193,35 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _ordersSearchQuery = '';
       _ordersFilterPeriod = _OrdersFilterPeriod.all;
       _navIndex = 3;
+    });
+  }
+
+  Future<void> _deleteOrder(Order order) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Hapus Transaksi?'),
+        content: Text(order.id),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(AppStrings.employeeDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      widget.orderRepository.remove(order.id);
     });
   }
 
@@ -237,56 +266,85 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildOrdersTab(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Align(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1080),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _buildOrdersFilterBar(context),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: <Widget>[
+                  _buildOrdersSearchAndToggle(),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: _ordersGridView
+                        ? OrdersList.grid(
+                            orders: _filteredOrders,
+                            onDelete: _deleteOrder,
+                          )
+                        : OrdersList(orders: _filteredOrders, onDelete: _deleteOrder),
+                  ),
+                ],
+              ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOrdersSearchAndToggle() {
+    return Column(
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(child: _buildOrdersSearchField()),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () =>
+                  setState(() => _ordersGridView = !_ordersGridView),
+              tooltip: _ordersGridView ? 'Tampilan List' : 'Tampilan Grid',
+              icon: Icon(
+                _ordersGridView
+                    ? Icons.view_list_outlined
+                    : Icons.grid_view_outlined,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
         ),
-        Expanded(child: OrdersList(orders: _filteredOrders)),
+        const SizedBox(height: 10),
+        _buildOrdersFilterBar(context),
       ],
     );
   }
 
   Widget _buildOrdersFilterBar(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        _buildOrdersSearchField(),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: <Widget>[
-              _buildPeriodChip('Hari Ini', _OrdersFilterPeriod.day),
-              const SizedBox(width: 6),
-              _buildPeriodChip('Minggu Ini', _OrdersFilterPeriod.week),
-              const SizedBox(width: 6),
-              _buildPeriodChip('Bulan Ini', _OrdersFilterPeriod.month),
-              const SizedBox(width: 6),
-              _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 170,
-                child: _buildEmployeeDropdown(context),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 130,
-                child: _buildMethodDropdown(context),
-              ),
-              const SizedBox(width: 6),
-              _buildOrdersDateFilterChip(context),
-            ],
-          ),
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          _buildPeriodChip('Hari Ini', _OrdersFilterPeriod.day),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Minggu Ini', _OrdersFilterPeriod.week),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Bulan Ini', _OrdersFilterPeriod.month),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
+            const SizedBox(width: 6),
+            IntrinsicWidth(
+              child: _buildEmployeeDropdown(context),
+            ),
+            const SizedBox(width: 6),
+            IntrinsicWidth(
+              child: _buildMethodDropdown(context),
+            ),
+            const SizedBox(width: 6),
+            _buildOrdersDateFilterChip(context),
+        ],
+      ),
     );
   }
 
@@ -296,7 +354,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => setState(() => _ordersFilterPeriod = period),
-      backgroundColor: AppColors.panelSurface,
+      backgroundColor: AppColors.surface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
         color: isSelected ? AppColors.onPanel : AppColors.onSurface,
@@ -304,46 +362,57 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         fontSize: 13,
       ),
       side: BorderSide(
-        color: isSelected ? Colors.transparent : AppColors.inputBorder,
+        color: isSelected
+            ? Colors.transparent
+            : AppColors.onSurfaceMuted.withValues(alpha: 0.25),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: isSelected ? 2 : 0,
+      shadowColor: AppColors.navShadow,
     );
   }
 
-  Widget _buildMethodDropdown(BuildContext context) {
-    return DropdownButtonFormField<PaymentMethod?>(
-      isExpanded: true,
-      initialValue: _ordersFilterMethod,
-      onChanged: (PaymentMethod? value) =>
-          setState(() => _ordersFilterMethod = value),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
-        ),
+    Widget _buildMethodDropdown(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppColors.cardShadow,
       ),
-      style: TextStyle(fontSize: 14, color: AppColors.onSurface),
-      items: const <DropdownMenuItem<PaymentMethod?>>[
-        DropdownMenuItem<PaymentMethod?>(
-          value: null,
-          child: Text('Semua'),
+      child: DropdownButtonFormField<PaymentMethod?>(
+        isExpanded: false,
+        initialValue: _ordersFilterMethod,
+        onChanged: (PaymentMethod? value) =>
+            setState(() => _ordersFilterMethod = value),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide.none,
+          ),
         ),
-        DropdownMenuItem<PaymentMethod?>(
-          value: PaymentMethod.cash,
-          child: Text('Tunai'),
-        ),
-        DropdownMenuItem<PaymentMethod?>(
-          value: PaymentMethod.qris,
-          child: Text('QRIS'),
-        ),
-      ],
+        style: TextStyle(fontSize: 14, color: AppColors.onSurface),
+        items: const <DropdownMenuItem<PaymentMethod?>>[
+          DropdownMenuItem<PaymentMethod?>(
+            value: null,
+            child: Text('Pembayaran'),
+          ),
+          DropdownMenuItem<PaymentMethod?>(
+            value: PaymentMethod.cash,
+            child: Text('Tunai'),
+          ),
+          DropdownMenuItem<PaymentMethod?>(
+            value: PaymentMethod.qris,
+            child: Text('QRIS'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -353,58 +422,70 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         .map((Employee employee) => employee.name)
         .toList();
 
-    return DropdownButtonFormField<String?>(
-      isExpanded: true,
-      initialValue: _ordersFilterEmployee,
-      hint: const Text('Semua Pegawai'),
-      onChanged: (String? value) =>
-          setState(() => _ordersFilterEmployee = value),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppColors.cardShadow,
       ),
-      style: TextStyle(fontSize: 15, color: AppColors.onSurface),
-      items: <DropdownMenuItem<String?>>[
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text('Semua Pegawai'),
+      child: DropdownButtonFormField<String?>(
+        isExpanded: false,
+        initialValue: _ordersFilterEmployee,
+        hint: const Text('Pegawai'),
+        onChanged: (String? value) =>
+            setState(() => _ordersFilterEmployee = value),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide.none,
+          ),
         ),
-        for (final String name in employeeNames)
-          DropdownMenuItem<String?>(value: name, child: Text(name)),
-      ],
+        style: TextStyle(fontSize: 15, color: AppColors.onSurface),
+        items: <DropdownMenuItem<String?>>[
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('Pegawai'),
+          ),
+          for (final String name in employeeNames)
+            DropdownMenuItem<String?>(value: name, child: Text(name)),
+        ],
+      ),
     );
   }
 
   Widget _buildOrdersSearchField() {
-    return TextField(
-      onChanged: (String value) => setState(() => _ordersSearchQuery = value),
-      style: TextStyle(fontSize: 15, color: AppColors.onSurface),
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: 'Cari ID pesanan',
-        prefixIcon: Icon(
-          Icons.search,
-          size: 18,
-          color: AppColors.onSurfaceMuted,
-        ),
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: TextField(
+        onChanged: (String value) => setState(() => _ordersSearchQuery = value),
+        style: TextStyle(fontSize: 15, color: AppColors.onSurface),
+        decoration: InputDecoration(
+          hintText: 'Cari ID pesanan, nama kasir...',
+          prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceMuted),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon: _ordersSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => _ordersSearchQuery = ''),
+                )
+              : null,
         ),
       ),
     );
@@ -419,36 +500,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Material(
-          color: AppColors.panelSurface,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: () => _pickOrdersFilterDate(context),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.inputBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 14,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: () => _pickOrdersFilterDate(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: AppColors.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -507,15 +591,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
         actions: <Widget>[
           const ThemeToggleButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: IconButton(
-              onPressed: () =>
-                  showComingSoonDialog(context, AppStrings.cashierInbox),
-              tooltip: AppStrings.cashierInbox,
-              icon: const Icon(Icons.mail_outline),
-            ),
-          ),
         ],
       ),
       body: _buildBody(context),
@@ -629,30 +704,44 @@ class _AdminQuickMenuGrid extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final _AdminMenuItem item = items[index];
         return Material(
-          color: AppColors.panelSurface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(item.icon, size: 36, color: AppColors.onSurface),
-                  const SizedBox(height: 10),
-                  Text(
-                    item.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15.6,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.surface,
+                  AppColors.surface.withValues(alpha: 0.94),
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.cardShadow,
+            ),
+            child: InkWell(
+              onTap: item.onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(item.icon, size: 36, color: AppColors.primary),
+                    const SizedBox(height: 10),
+                    Text(
+                      item.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.6,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -662,107 +751,6 @@ class _AdminQuickMenuGrid extends StatelessWidget {
   }
 }
 
-class _EmployeePerformanceSection extends StatelessWidget {
-  const _EmployeePerformanceSection({
-    required this.employees,
-    required this.orders,
-  });
-
-  final List<Employee> employees;
-  final List<Order> orders;
-
-  @override
-  Widget build(BuildContext context) {
-    final Map<String, int> counts = <String, int>{};
-    for (final Order order in orders) {
-      counts[order.cashierName] = (counts[order.cashierName] ?? 0) + 1;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          'Performa Pegawai',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (employees.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: Text(
-              'Belum ada pegawai',
-              style: TextStyle(color: AppColors.onSurfaceMuted),
-            ),
-          )
-        else
-          for (final Employee employee in employees)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.divider),
-                boxShadow: AppColors.cardShadow,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.person, size: 18, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      employee.name,
-                      style: TextStyle(
-                        fontSize: 15.6,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${counts[employee.name] ?? 0} transaksi',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-      ],
-    );
-  }
-}
 
 class _AdminMenuItem {
   const _AdminMenuItem({

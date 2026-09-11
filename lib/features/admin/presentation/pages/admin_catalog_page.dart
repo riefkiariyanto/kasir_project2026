@@ -8,7 +8,6 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/rupiah_input_formatter.dart';
-import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/category_repository.dart';
@@ -154,12 +153,6 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         title: BrandTitle(text: AppStrings.adminProducts),
         actions: <Widget>[
           const ThemeToggleButton(),
-          IconButton(
-            onPressed: () =>
-                showComingSoonDialog(context, AppStrings.cashierInbox),
-            tooltip: AppStrings.cashierInbox,
-            icon: const Icon(Icons.mail_outline),
-          ),
         ],
       ),
       bottomNavigationBar: AdminBottomNav(

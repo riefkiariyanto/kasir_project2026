@@ -31,7 +31,7 @@ class AdminBottomNav extends StatelessWidget {
     ),
     AdminNavItem(
       icon: Icons.receipt_long_outlined,
-      label: AppStrings.adminOrdersNav,
+      label: AppStrings.adminTransactions,
     ),
   ];
 

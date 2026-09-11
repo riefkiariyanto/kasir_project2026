@@ -33,7 +33,7 @@ class CartItemTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15.5,
+                    fontSize: 17,
                     fontWeight: FontWeight.w500,
                     color: AppColors.onSurface,
                   ),
@@ -42,7 +42,7 @@ class CartItemTile extends StatelessWidget {
                 Text(
                   CurrencyFormatter.rupiah(item.subtotal),
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.onSurfaceMuted,
                   ),
@@ -95,12 +95,12 @@ class _QuantityStepper extends StatelessWidget {
       children: <Widget>[
         _StepperButton(icon: Icons.remove, onTap: onDecrement),
         SizedBox(
-          width: 25,
+          width: 27,
           child: Text(
             '$quantity',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 16.5,
               fontWeight: FontWeight.w600,
               color: AppColors.onSurface,
             ),
@@ -124,14 +124,14 @@ class _StepperButton extends StatelessWidget {
       onTap: onTap,
       customBorder: const CircleBorder(),
       child: Container(
-        width: 28,
-        height: 28,
+        width: 30,
+        height: 30,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.inputBorder),
         ),
-        child: Icon(icon, size: 15, color: AppColors.onSurface),
+        child: Icon(icon, size: 16.5, color: AppColors.onSurface),
       ),
     );
   }

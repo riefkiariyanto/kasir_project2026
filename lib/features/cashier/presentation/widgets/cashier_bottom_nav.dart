@@ -26,8 +26,8 @@ class CashierBottomNav extends StatelessWidget {
       label: AppStrings.navTransactions,
     ),
     CashierNavItem(
-      icon: Icons.inventory_2_outlined,
-      label: AppStrings.navOrders,
+      icon: Icons.history_outlined,
+      label: AppStrings.adminTransactions,
     ),
     CashierNavItem(icon: Icons.account_balance_wallet_outlined, label: AppStrings.navFinance),
   ];

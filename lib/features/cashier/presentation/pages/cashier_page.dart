@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
-import '../../../../core/routing/app_routes.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_dialog.dart';
+import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../data/category_repository.dart';
@@ -19,6 +18,7 @@ import '../widgets/category_grid.dart';
 import '../widgets/orders_list.dart';
 import '../widgets/promo_banner.dart';
 import 'finance_tab.dart';
+import 'transaction_page.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({
@@ -48,6 +48,7 @@ class _CashierPageState extends State<CashierPage> {
   String _ordersSearchQuery = '';
   PaymentMethod? _ordersFilterMethod;
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
+  bool _ordersGridView = false;
 
   void _pushHistory(int from) {
     _navHistory.add(from);
@@ -65,22 +66,11 @@ class _CashierPageState extends State<CashierPage> {
     });
   }
 
-  bool _isSameDate(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDate(DateTime a, DateTime b) => AppDateUtils.isSameDate(a, b);
 
-  bool _isSameMonth(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month;
+  bool _isSameMonth(DateTime a, DateTime b) => AppDateUtils.isSameMonth(a, b);
 
-  DateTime _startOfWeek(DateTime date) {
-    final DateTime day = DateTime(date.year, date.month, date.day);
-    return day.subtract(Duration(days: day.weekday - DateTime.monday));
-  }
-
-  bool _isSameWeek(DateTime a, DateTime b) {
-    final DateTime startA = _startOfWeek(a);
-    final DateTime startB = _startOfWeek(b);
-    return _isSameDate(startA, startB);
-  }
+  bool _isSameWeek(DateTime a, DateTime b) => AppDateUtils.isSameWeek(a, b);
 
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
@@ -126,20 +116,24 @@ class _CashierPageState extends State<CashierPage> {
     }
   }
 
-  String _formatFilterDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/'
-      '${date.month.toString().padLeft(2, '0')}/'
-      '${date.year}';
+  String _formatFilterDate(DateTime date) => AppDateUtils.formatDate(date);
 
-  Future<void> _openTransaction() async {
-    final Object? result = await Navigator.of(
-      context,
-    ).pushNamed(AppRoutes.transaction);
+  Future<void> _openTransaction({String? category}) async {
+    final Object? result = await Navigator.of(context).push(
+      MaterialPageRoute<Object>(
+        builder: (_) =>
+            TransactionPage(initialCategory: category),
+      ),
+    );
 
     if (result == RouteResults.openOrders && mounted) {
       setState(() {
         _resetOrdersFilters();
         _navIndex = 2;
+      });
+    } else if (result == RouteResults.openFinance && mounted) {
+      setState(() {
+        _navIndex = 3;
       });
     }
   }
@@ -189,9 +183,10 @@ class _CashierPageState extends State<CashierPage> {
       case 0:
         return _CashierHomeTab(
           categories: widget.categoryRepository.fetchAll(),
-          onCategoryTap: (ProductCategory category) => _openTransaction(),
-          onBannerTap: _openTransaction,
-          onTransaksiTap: _openTransaction,
+          onCategoryTap: (ProductCategory category) =>
+              _openTransaction(category: category.name),
+          onBannerTap: () => _openTransaction(),
+          onTransaksiTap: () => _openTransaction(),
           onOrdersTap: _openOrders,
           onFinanceTap: _openFinance,
         );
@@ -205,57 +200,82 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Widget _buildOrdersTab(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Align(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1080),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _buildOrdersFilterBar(context),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: <Widget>[
+                  _buildOrdersSearchAndToggle(),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: _ordersGridView
+                        ? OrdersList.grid(orders: _filteredOrders)
+                        : OrdersList(orders: _filteredOrders),
+                  ),
+                ],
+              ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOrdersSearchAndToggle() {
+    return Column(
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(child: _buildOrdersSearchField()),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () =>
+                  setState(() => _ordersGridView = !_ordersGridView),
+              tooltip: _ordersGridView ? 'Tampilan List' : 'Tampilan Grid',
+              icon: Icon(
+                _ordersGridView
+                    ? Icons.view_list_outlined
+                    : Icons.grid_view_outlined,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ],
         ),
-        Expanded(child: OrdersList(orders: _filteredOrders)),
+        const SizedBox(height: 10),
+        _buildOrdersFilterBar(context),
       ],
     );
   }
 
   Widget _buildOrdersFilterBar(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        _buildOrdersSearchField(),
-        const SizedBox(height: 4),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: <Widget>[
-              _buildPeriodChip('Hari Ini', _OrdersFilterPeriod.day),
-              const SizedBox(width: 4),
-              _buildPeriodChip('Minggu Ini', _OrdersFilterPeriod.week),
-              const SizedBox(width: 4),
-              _buildPeriodChip('Bulan Ini', _OrdersFilterPeriod.month),
-              const SizedBox(width: 4),
-              _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
-              const SizedBox(width: 4),
-              SizedBox(
-                width: 170,
-                child: _buildEmployeeDropdown(context),
-              ),
-              const SizedBox(width: 4),
-              SizedBox(
-                width: 130,
-                child: _buildMethodDropdown(context),
-              ),
-              const SizedBox(width: 4),
-              _buildOrdersDateFilterChip(context),
-            ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          _buildPeriodChip('Hari Ini', _OrdersFilterPeriod.day),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Minggu Ini', _OrdersFilterPeriod.week),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Bulan Ini', _OrdersFilterPeriod.month),
+          const SizedBox(width: 6),
+          _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
+          const SizedBox(width: 6),
+          IntrinsicWidth(
+            child: _buildEmployeeDropdown(context),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          IntrinsicWidth(
+            child: _buildMethodDropdown(context),
+          ),
+          const SizedBox(width: 6),
+          _buildOrdersDateFilterChip(context),
+        ],
+      ),
     );
   }
 
@@ -265,7 +285,7 @@ class _CashierPageState extends State<CashierPage> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => setState(() => _ordersFilterPeriod = period),
-      backgroundColor: AppColors.panelSurface,
+      backgroundColor: AppColors.surface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
         color: isSelected ? AppColors.onPanel : AppColors.onSurface,
@@ -273,9 +293,13 @@ class _CashierPageState extends State<CashierPage> {
         fontSize: 13,
       ),
       side: BorderSide(
-        color: isSelected ? Colors.transparent : AppColors.inputBorder,
+        color: isSelected
+            ? Colors.transparent
+            : AppColors.onSurfaceMuted.withValues(alpha: 0.25),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: isSelected ? 2 : 0,
+      shadowColor: AppColors.navShadow,
     );
   }
 
@@ -283,36 +307,39 @@ class _CashierPageState extends State<CashierPage> {
     final DateTime? date = _ordersFilterDate;
     final String label = date == null ? 'Tanggal' : _formatFilterDate(date);
 
-    return Material(
-      color: AppColors.panelSurface,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: () => _pickOrdersFilterDate(context),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.inputBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onSurface,
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => _pickOrdersFilterDate(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: AppColors.primary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -320,39 +347,46 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Widget _buildMethodDropdown(BuildContext context) {
-    return DropdownButtonFormField<PaymentMethod?>(
-      isExpanded: true,
-      initialValue: _ordersFilterMethod,
-      onChanged: (PaymentMethod? value) =>
-          setState(() => _ordersFilterMethod = value),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppColors.cardShadow,
       ),
-      style: TextStyle(fontSize: 14, color: AppColors.onSurface),
-      items: const <DropdownMenuItem<PaymentMethod?>>[
-        DropdownMenuItem<PaymentMethod?>(
-          value: null,
-          child: Text('Semua'),
+      child: DropdownButtonFormField<PaymentMethod?>(
+        isExpanded: false,
+        initialValue: _ordersFilterMethod,
+        onChanged: (PaymentMethod? value) =>
+            setState(() => _ordersFilterMethod = value),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide.none,
+          ),
         ),
-        DropdownMenuItem<PaymentMethod?>(
-          value: PaymentMethod.cash,
-          child: Text('Tunai'),
-        ),
-        DropdownMenuItem<PaymentMethod?>(
-          value: PaymentMethod.qris,
-          child: Text('QRIS'),
-        ),
-      ],
+        style: TextStyle(fontSize: 14, color: AppColors.onSurface),
+        items: const <DropdownMenuItem<PaymentMethod?>>[
+          DropdownMenuItem<PaymentMethod?>(
+            value: null,
+            child: Text('Pembayaran'),
+          ),
+          DropdownMenuItem<PaymentMethod?>(
+            value: PaymentMethod.cash,
+            child: Text('Tunai'),
+          ),
+          DropdownMenuItem<PaymentMethod?>(
+            value: PaymentMethod.qris,
+            child: Text('QRIS'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -362,63 +396,72 @@ class _CashierPageState extends State<CashierPage> {
         .map((Employee employee) => employee.name)
         .toList();
 
-    return DropdownButtonFormField<String?>(
-      isExpanded: true,
-      initialValue: _ordersFilterEmployee,
-      hint: const Text('Semua Pegawai'),
-      onChanged: (String? value) =>
-          setState(() => _ordersFilterEmployee = value),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppColors.cardShadow,
       ),
-      style: TextStyle(fontSize: 15, color: AppColors.onSurface),
-      items: <DropdownMenuItem<String?>>[
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text('Semua Pegawai'),
+      child: DropdownButtonFormField<String?>(
+        isExpanded: false,
+        initialValue: _ordersFilterEmployee,
+        hint: const Text('Pegawai'),
+        onChanged: (String? value) =>
+            setState(() => _ordersFilterEmployee = value),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide.none,
+          ),
         ),
-        for (final String name in employeeNames)
-          DropdownMenuItem<String?>(value: name, child: Text(name)),
-      ],
+        style: TextStyle(fontSize: 15, color: AppColors.onSurface),
+        items: <DropdownMenuItem<String?>>[
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('Pegawai'),
+          ),
+          for (final String name in employeeNames)
+            DropdownMenuItem<String?>(value: name, child: Text(name)),
+        ],
+      ),
     );
   }
 
   Widget _buildOrdersSearchField() {
-    return SizedBox(
-      height: 40,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: AppColors.cardShadow,
+      ),
       child: TextField(
-      onChanged: (String value) => setState(() => _ordersSearchQuery = value),
-      style: TextStyle(fontSize: 15, color: AppColors.onSurface),
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: 'Cari ID pesanan',
-        prefixIcon: Icon(
-          Icons.search,
-          size: 18,
-          color: AppColors.onSurfaceMuted,
-        ),
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
+        onChanged: (String value) => setState(() => _ordersSearchQuery = value),
+        style: TextStyle(fontSize: 15, color: AppColors.onSurface),
+        decoration: InputDecoration(
+          hintText: 'Cari ID pesanan, nama kasir...',
+          prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceMuted),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon: _ordersSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => _ordersSearchQuery = ''),
+                )
+              : null,
         ),
       ),
-    ),
     );
   }
 
@@ -436,7 +479,7 @@ class _CashierPageState extends State<CashierPage> {
       backgroundColor: AppColors.surface,
       extendBody: true,
       drawer: CashierDrawer(
-        onNewSale: _openTransaction,
+        onNewSale: () => _openTransaction(),
         onOpenOrders: _openOrders,
       ),
       appBar: AppBar(
@@ -463,22 +506,13 @@ class _CashierPageState extends State<CashierPage> {
         ),
         title: BrandTitle(
           text: _navIndex == 2
-              ? AppStrings.ordersHeader
+              ? AppStrings.adminTransactions
               : _navIndex == 3
                   ? AppStrings.financeHeader
                   : null,
         ),
         actions: <Widget>[
           const ThemeToggleButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: IconButton(
-              onPressed: () =>
-                  showComingSoonDialog(context, AppStrings.cashierInbox),
-              tooltip: AppStrings.cashierInbox,
-              icon: const Icon(Icons.mail_outline),
-            ),
-          ),
         ],
       ),
       body: _buildBody(context),
@@ -572,8 +606,8 @@ class _CashierQuickMenuGrid extends StatelessWidget {
         onTap: onTransaksiTap,
       ),
       _CashierMenuItem(
-        icon: Icons.history_outlined,
-        label: AppStrings.ordersHeader,
+        icon: Icons.receipt_outlined,
+        label: AppStrings.adminTransactions,
         onTap: onOrdersTap,
       ),
       _CashierMenuItem(
@@ -597,30 +631,44 @@ class _CashierQuickMenuGrid extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final _CashierMenuItem item = items[index];
         return Material(
-          color: AppColors.panelSurface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(item.icon, size: 36, color: AppColors.onSurface),
-                  const SizedBox(height: 10),
-                  Text(
-                    item.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15.6,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.surface,
+                  AppColors.surface.withValues(alpha: 0.94),
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppColors.cardShadow,
+            ),
+            child: InkWell(
+              onTap: item.onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(item.icon, size: 36, color: AppColors.primary),
+                    const SizedBox(height: 10),
+                    Text(
+                      item.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.6,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

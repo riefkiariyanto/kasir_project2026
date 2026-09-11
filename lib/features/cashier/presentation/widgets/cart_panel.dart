@@ -59,7 +59,7 @@ class CartPanel extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.onSurface,
                     ),
@@ -70,7 +70,7 @@ class CartPanel extends StatelessWidget {
                   Text(
                     '($_itemCount)',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w500,
                       color: AppColors.onSurfaceMuted,
                     ),
@@ -122,7 +122,7 @@ class CartPanel extends StatelessWidget {
                     Text(
                       AppStrings.cartTotal,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w500,
                         color: AppColors.onSurfaceMuted,
                       ),
@@ -132,7 +132,7 @@ class CartPanel extends StatelessWidget {
                         CurrencyFormatter.rupiah(total),
                         textAlign: TextAlign.right,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 19.5,
                           fontWeight: FontWeight.w700,
                           color: AppColors.onSurface,
                         ),
@@ -161,7 +161,7 @@ class CartPanel extends StatelessWidget {
                     child: const Text(
                       AppStrings.cartCheckout,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -194,7 +194,7 @@ class _EmptyCart extends StatelessWidget {
           Text(
             AppStrings.cartEmpty,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14.5,
               fontWeight: FontWeight.w600,
               color: AppColors.onSurface,
             ),
@@ -203,7 +203,7 @@ class _EmptyCart extends StatelessWidget {
           Text(
             AppStrings.cartEmptyHint,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.onSurfaceMuted),
+            style: TextStyle(fontSize: 13.5, color: AppColors.onSurfaceMuted),
           ),
         ],
       ),

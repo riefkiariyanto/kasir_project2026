@@ -104,7 +104,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.inventory_2_outlined));
+      await tester.tap(find.byIcon(Icons.history_outlined));
       await tester.pumpAndSettle();
 
       expect(find.byType(CashierPage), findsOneWidget);

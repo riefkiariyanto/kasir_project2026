@@ -131,4 +131,8 @@ class OrderRepository {
   void add(Order order) {
     _orders.add(order);
   }
+
+  void remove(String id) {
+    _orders.removeWhere((Order order) => order.id == id);
+  }
 }

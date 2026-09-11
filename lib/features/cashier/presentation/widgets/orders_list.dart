@@ -11,10 +11,22 @@ class OrdersList extends StatelessWidget {
     super.key,
     required this.orders,
     this.maxContentWidth = 1080,
+    this.isGrid = false,
+    this.onDelete,
+  });
+
+  const OrdersList.grid({
+    super.key,
+    required this.orders,
+    this.maxContentWidth = 1080,
+    this.isGrid = true,
+    this.onDelete,
   });
 
   final List<Order> orders;
   final double maxContentWidth;
+  final bool isGrid;
+  final ValueChanged<Order>? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -24,20 +36,39 @@ class OrdersList extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: maxContentWidth),
         child: orders.isEmpty
             ? const _OrdersEmptyState()
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-                itemCount: orders.length,
-                separatorBuilder: (BuildContext context, int index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (BuildContext context, int index) {
-                  final Order order = orders[index];
-
-                  return OrderCard(
-                    order: order,
-                    onTap: () => OrderDetailDialog.show(context, order: order),
-                  );
-                },
-              ),
+            : isGrid
+                ? GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                    itemCount: orders.length,
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 380,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 2.2,
+                    ),
+                    itemBuilder: (BuildContext context, int index) {
+                      final Order order = orders[index];
+                      return OrderCard(
+                        order: order,
+                        onTap: () => OrderDetailDialog.show(context, order: order),
+                        onDelete: onDelete != null ? () => onDelete!(order) : null,
+                      );
+                    },
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                    itemCount: orders.length,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (BuildContext context, int index) {
+                      final Order order = orders[index];
+                      return OrderCard(
+                        order: order,
+                        onTap: () => OrderDetailDialog.show(context, order: order),
+                        onDelete: onDelete != null ? () => onDelete!(order) : null,
+                      );
+                    },
+                  ),
       ),
     );
   }
@@ -53,29 +84,38 @@ class _OrdersEmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Container(
-            width: 64,
-            height: 64,
+            width: 80,
+            height: 80,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.12),
+                  AppColors.primary.withValues(alpha: 0.06),
+                ],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.receipt_long_outlined,
-              size: 32,
-              color: AppColors.primary,
+              size: 36,
+              color: AppColors.primary.withValues(alpha: 0.8),
             ),
           ),
-          const SizedBox(height: 14),
-          const Text(
+          const SizedBox(height: 16),
+          Text(
             AppStrings.ordersEmpty,
-            style: TextStyle(fontSize: 16.8, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onSurface,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             AppStrings.ordersEmptyHint,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14.4, color: AppColors.onSurfaceMuted),
+            style: TextStyle(fontSize: 13.5, color: AppColors.onSurfaceMuted),
           ),
         ],
       ),

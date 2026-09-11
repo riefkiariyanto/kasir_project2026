@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../widgets/admin_bottom_nav.dart';
@@ -123,12 +122,6 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
         title: BrandTitle(text: AppStrings.employeesTitle),
         actions: <Widget>[
           const ThemeToggleButton(),
-          IconButton(
-            onPressed: () =>
-                showComingSoonDialog(context, AppStrings.cashierInbox),
-            tooltip: AppStrings.cashierInbox,
-            icon: const Icon(Icons.mail_outline),
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -159,26 +152,31 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
   }
 
   Widget _buildSearchField() {
-    return TextField(
-      onChanged: (String value) => setState(() => _searchQuery = value),
-      style: TextStyle(fontSize: 15, color: AppColors.onSurface),
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: AppStrings.employeeSearchHint,
-        prefixIcon: Icon(
-          Icons.search,
-          size: 18,
-          color: AppColors.onSurfaceMuted,
-        ),
-        filled: true,
-        fillColor: AppColors.panelSurface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: AppColors.inputBorder),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: TextField(
+        onChanged: (String value) => setState(() => _searchQuery = value),
+        style: TextStyle(fontSize: 15, color: AppColors.onSurface),
+        decoration: InputDecoration(
+          hintText: AppStrings.employeeSearchHint,
+          prefixIcon: Icon(Icons.search, color: AppColors.onSurfaceMuted),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => _searchQuery = ''),
+                )
+              : null,
         ),
       ),
     );

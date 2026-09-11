@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../constants/app_strings.dart';
+import '../data/store_repository.dart';
 import '../theme/app_colors.dart';
 
 class BrandTitle extends StatelessWidget {
@@ -12,16 +12,22 @@ class BrandTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text ?? AppStrings.brandName,
-      style: TextStyle(
-        fontFamily: 'serif',
-        fontSize: fontSize,
-        fontStyle: FontStyle.italic,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
-        color: color ?? AppColors.onSurface,
-      ),
+    return ValueListenableBuilder<StoreInfo>(
+      valueListenable: StoreRepository.store,
+      builder: (BuildContext context, StoreInfo store, _) {
+        final String shown = text ?? (store.name.isEmpty ? 'Toko' : store.name);
+        return Text(
+          shown,
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontSize: fontSize,
+            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            color: color ?? AppColors.onSurface,
+          ),
+        );
+      },
     );
   }
 }

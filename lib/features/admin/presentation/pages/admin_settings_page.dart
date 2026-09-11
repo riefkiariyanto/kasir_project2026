@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/store_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
@@ -38,6 +39,84 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         context,
         title: AppStrings.changePasswordTitle,
         message: AppStrings.passwordChanged,
+      );
+    }
+  }
+
+  Future<void> _openStoreEditor() async {
+    final StoreInfo current = StoreRepository.data;
+    final TextEditingController nameCtrl =
+        TextEditingController(text: current.name);
+    final TextEditingController addressCtrl =
+        TextEditingController(text: current.address);
+    final TextEditingController phoneCtrl =
+        TextEditingController(text: current.phone);
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    final bool? saved = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(AppStrings.storeEditTitle),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _StyledTextField(
+                  controller: nameCtrl,
+                  label: AppStrings.storeNameLabel,
+                  icon: Icons.store_outlined,
+                ),
+                const SizedBox(height: 12),
+                _StyledTextField(
+                  controller: addressCtrl,
+                  label: AppStrings.storeAddressLabel,
+                  icon: Icons.location_on_outlined,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                _StyledTextField(
+                  controller: phoneCtrl,
+                  label: AppStrings.storePhoneLabel,
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                StoreRepository.update(StoreInfo(
+                  name: nameCtrl.text.trim(),
+                  address: addressCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                ));
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: const Text(AppStrings.save),
+          ),
+        ],
+      ),
+    );
+
+    nameCtrl.dispose();
+    addressCtrl.dispose();
+    phoneCtrl.dispose();
+
+    if (saved == true && mounted) {
+      showAppDialog(
+        context,
+        title: AppStrings.storeEditTitle,
+        message: AppStrings.storeSaved,
       );
     }
   }
@@ -151,6 +230,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                _buildStoreSection(),
+                const SizedBox(height: 28),
                 _buildCategoryChips(),
                 const SizedBox(height: 28),
                 _buildAccountSection(),
@@ -159,6 +240,159 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStoreSection() {
+    return ValueListenableBuilder<StoreInfo>(
+      valueListenable: StoreRepository.store,
+      builder: (BuildContext context, StoreInfo store, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              AppStrings.storeDataTitle,
+              style: TextStyle(
+                fontSize: 14.4,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                onTap: _openStoreEditor,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.surface,
+                        AppColors.surface.withValues(alpha: 0.93),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppColors.cardShadow,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Container(
+                            width: 60,
+                            height: 60,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.primary.withValues(alpha: 0.9),
+                                  AppColors.primary.withValues(alpha: 0.7),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.storefront_outlined,
+                              color: Colors.white,
+                              size: 30,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  store.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Nama Toko',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.onSurfaceMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(
+                                  Icons.edit_outlined,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      const Divider(height: 1),
+                      const SizedBox(height: 14),
+                      _StoreDetailRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Alamat',
+                        text: store.address,
+                      ),
+                      const SizedBox(height: 12),
+                      _StoreDetailRow(
+                        icon: Icons.phone_outlined,
+                        label: 'No. HP',
+                        text: store.phone,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -381,6 +615,114 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         ),
         FilledButton(onPressed: _submit, child: const Text(AppStrings.save)),
       ],
+    );
+  }
+}
+
+class _StoreDetailRow extends StatelessWidget {
+  const _StoreDetailRow({
+    required this.icon,
+    required this.label,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 17, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.onSurfaceMuted,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StyledTextField extends StatelessWidget {
+  const _StyledTextField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType,
+    this.maxLines = 1,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: (String? value) => (value == null || value.trim().isEmpty)
+          ? 'Wajib diisi'
+          : null,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: AppColors.onSurfaceMuted),
+        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+        filled: true,
+        fillColor: AppColors.panelSurface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: AppColors.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
     );
   }
 }

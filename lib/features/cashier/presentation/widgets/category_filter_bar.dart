@@ -40,7 +40,7 @@ class CategoryFilterBar extends StatelessWidget {
             labelStyle: TextStyle(
               color: isSelected ? AppColors.onPanel : AppColors.onSurface,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 14,
             ),
             side: BorderSide.none,
             shape: RoundedRectangleBorder(

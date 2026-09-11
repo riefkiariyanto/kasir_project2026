@@ -66,7 +66,7 @@ class _MethodButton extends StatelessWidget {
             children: <Widget>[
               Icon(
                 method.icon,
-                size: 15,
+                size: 16.5,
                 color: selected ? AppColors.onPanel : AppColors.onSurfaceMuted,
               ),
               const SizedBox(width: 5),
@@ -76,7 +76,7 @@ class _MethodButton extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 13.8,
                     fontWeight: FontWeight.w600,
                     color: selected ? AppColors.onPanel : AppColors.onSurface,
                   ),

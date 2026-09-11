@@ -70,14 +70,25 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
     Navigator.of(context).pop(employee);
   }
 
+  Color _methodColor(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.cash:
+        return Colors.green;
+      case PaymentMethod.qris:
+        return Colors.blue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final Color methodColor = _methodColor(widget.method);
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           child: ListenableBuilder(
             listenable: widget.cart,
             builder: (BuildContext context, _) {
@@ -85,23 +96,76 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
 
               return Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  const Text(
-                    AppStrings.verifyOrderTitle,
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              methodColor.withValues(alpha: 0.9),
+                              methodColor.withValues(alpha: 0.7),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(widget.method.icon,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              AppStrings.verifyOrderTitle,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              AppStrings.verifyOrderItems,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurfaceMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: methodColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          widget.method.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: methodColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.verifyOrderItems,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurfaceMuted,
-                    ),
-                  ),
+                  const SizedBox(height: 18),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
+                    constraints: const BoxConstraints(maxHeight: 200),
                     child: items.isEmpty
                         ? Padding(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -136,49 +200,36 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
                             },
                           ),
                   ),
-                  Divider(height: 24, color: AppColors.divider),
+                  _DashedDivider(color: AppColors.divider),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
-                      const Text(
+                      Text(
                         AppStrings.cartTotal,
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 15.6,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.onSurface,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.rupiah(widget.cart.total),
                         style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        widget.method.icon,
-                        size: 16,
-                        color: AppColors.onSurfaceMuted,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        widget.method.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.onSurfaceMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  const SizedBox(height: 16),
+                  Text(
                     AppStrings.verifyOrderPinLabel,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -243,6 +294,31 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < 60; i++)
+            Expanded(
+              child: Container(
+                height: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 1),
+                color: color,
+              ),
+            ),
+        ],
       ),
     );
   }

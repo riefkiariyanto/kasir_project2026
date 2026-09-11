@@ -14,10 +14,16 @@ class PromoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: aspectRatio,
-      child: Material(
-        color: AppColors.placeholder,
-        borderRadius: _radius,
-        child: InkWell(onTap: onTap, borderRadius: _radius),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: _radius,
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Material(
+          color: AppColors.placeholder,
+          borderRadius: _radius,
+          child: InkWell(onTap: onTap, borderRadius: _radius),
+        ),
       ),
     );
   }
