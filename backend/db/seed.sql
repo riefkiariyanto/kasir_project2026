@@ -1,0 +1,54 @@
+-- Seed data: port 1:1 dari data dummy di repository Dart (kasir_2026)
+
+update store_settings
+set name = 'Nail Art', address = 'Jl. Melati No. 12, Jakarta', phone = '0812-3456-7890'
+where id = 1;
+
+insert into categories (id, name, icon_key) values
+  ('00000000-0000-0000-0000-000000000001', 'Manicure', 'back_hand_outlined'),
+  ('00000000-0000-0000-0000-000000000002', 'Pedicure', 'spa_outlined'),
+  ('00000000-0000-0000-0000-000000000003', 'Nail Art', 'auto_awesome_outlined'),
+  ('00000000-0000-0000-0000-000000000004', 'Extension', 'straighten_outlined'),
+  ('00000000-0000-0000-0000-000000000005', 'Gel Polish', 'colorize_outlined'),
+  ('00000000-0000-0000-0000-000000000006', 'Refill', 'refresh_outlined'),
+  ('00000000-0000-0000-0000-000000000007', 'Perawatan', 'healing_outlined'),
+  ('00000000-0000-0000-0000-000000000008', 'Aksesori', 'diamond_outlined'),
+  ('00000000-0000-0000-0000-000000000009', 'Paket Hemat', 'card_giftcard_outlined')
+on conflict (id) do nothing;
+
+insert into products (id, name, price, category_id, tag) values
+  ('00000000-0000-0000-0000-000000000101', 'Manicure Klasik', 45000, '00000000-0000-0000-0000-000000000001', null),
+  ('00000000-0000-0000-0000-000000000102', 'Manicure Spa', 75000, '00000000-0000-0000-0000-000000000001', 'Populer'),
+  ('00000000-0000-0000-0000-000000000103', 'Pedicure Klasik', 50000, '00000000-0000-0000-0000-000000000002', null),
+  ('00000000-0000-0000-0000-000000000104', 'Pedicure Spa', 85000, '00000000-0000-0000-0000-000000000002', null),
+  ('00000000-0000-0000-0000-000000000105', 'Nail Art Custom', 120000, '00000000-0000-0000-0000-000000000003', 'Custome'),
+  ('00000000-0000-0000-0000-000000000106', 'Nail Art Sederhana', 60000, '00000000-0000-0000-0000-000000000003', null),
+  ('00000000-0000-0000-0000-000000000107', 'Extension Akrilik', 150000, '00000000-0000-0000-0000-000000000004', null),
+  ('00000000-0000-0000-0000-000000000108', 'Extension Gel', 175000, '00000000-0000-0000-0000-000000000004', null),
+  ('00000000-0000-0000-0000-000000000109', 'Gel Polish', 65000, '00000000-0000-0000-0000-000000000005', null),
+  ('00000000-0000-0000-0000-000000000110', 'Refill Kuku', 55000, '00000000-0000-0000-0000-000000000006', null),
+  ('00000000-0000-0000-0000-000000000111', 'Perawatan Kutikula', 40000, '00000000-0000-0000-0000-000000000007', null),
+  ('00000000-0000-0000-0000-000000000112', 'Paket Hemat Duo', 130000, '00000000-0000-0000-0000-000000000009', null)
+on conflict (id) do nothing;
+
+-- employees + admin: pin_hash/password_hash diisi oleh migrate.js (bcrypt), bukan lewat SQL biasa
+-- lihat db/migrate.js -> seedAuthData()
+
+insert into orders (id, invoice_no, total, method, cashier_id, cashier_name, created_at) values
+  ('00000000-0000-0000-0000-000000000301', 'INV-001', 155000, 'qris', '00000000-0000-0000-0000-000000000201', 'Siti Aminah', now() - interval '3 days 3 hours 45 minutes'),
+  ('00000000-0000-0000-0000-000000000302', 'INV-002', 85000, 'cash', '00000000-0000-0000-0000-000000000202', 'Budi Santoso', now() - interval '2 days 1 hour 30 minutes'),
+  ('00000000-0000-0000-0000-000000000303', 'INV-003', 125000, 'qris', '00000000-0000-0000-0000-000000000201', 'Siti Aminah', now() - interval '1 day 6 hours'),
+  ('00000000-0000-0000-0000-000000000304', 'INV-004', 175000, 'qris', '00000000-0000-0000-0000-000000000202', 'Budi Santoso', now() - interval '4 hours'),
+  ('00000000-0000-0000-0000-000000000305', 'INV-005', 130000, 'cash', '00000000-0000-0000-0000-000000000201', 'Siti Aminah', now() - interval '1 hour')
+on conflict (id) do nothing;
+
+insert into order_items (order_id, product_id, product_name, price, quantity) values
+  ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000101', 'Manicure Klasik', 45000, 2),
+  ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000109', 'Gel Polish', 65000, 1),
+  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000104', 'Pedicure Spa', 85000, 1),
+  ('00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-000000000102', 'Manicure Spa', 75000, 1),
+  ('00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-000000000103', 'Pedicure Klasik', 50000, 1),
+  ('00000000-0000-0000-0000-000000000304', '00000000-0000-0000-0000-000000000108', 'Extension Gel', 175000, 1),
+  ('00000000-0000-0000-0000-000000000305', '00000000-0000-0000-0000-000000000112', 'Paket Hemat Duo', 130000, 1);
+
+select setval('orders_invoice_seq', 5, true);
