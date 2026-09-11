@@ -19,6 +19,7 @@ app.use(
     cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 },
   })
 );
+app.use(require('./middleware/loadSessionFromToken'));
 app.use('/uploads', express.static(path.resolve(process.env.UPLOAD_DIR || './uploads')));
 
 app.use('/api/auth', require('./routes/auth'));

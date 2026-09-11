@@ -19,24 +19,41 @@ class FinanceTab extends StatefulWidget {
 }
 
 class _FinanceTabState extends State<FinanceTab> {
+  List<FinanceEntry>? _entries;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<FinanceEntry> entries = await widget.financeRepository.fetchAll();
+    if (mounted) {
+      setState(() => _entries = entries);
+    }
+  }
+
   Future<void> _openAction(FinanceType type) async {
     final result = await FinanceActionDialog.show(context, type: type);
     if (result != null && mounted) {
-      final entry = FinanceEntry(
-        id: widget.financeRepository.nextId(),
+      await widget.financeRepository.add(
+        employeeId: result.employee.id,
         employeeName: result.employee.name,
         type: type,
         amount: result.amount,
-        createdAt: DateTime.now(),
       );
-      widget.financeRepository.add(entry);
-      setState(() {});
+      await _load();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<FinanceEntry> entries = widget.financeRepository.fetchAll();
+    final List<FinanceEntry> entries = _entries ?? const <FinanceEntry>[];
+
+    if (_entries == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return Align(
       alignment: Alignment.topCenter,

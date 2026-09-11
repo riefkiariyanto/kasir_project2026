@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/cart_controller.dart';
 import '../../data/cart_item.dart';
-import '../../data/employee.dart';
 import '../../data/employee_repository.dart';
+import '../../data/order.dart';
 import 'cart_item_tile.dart';
 
 class OrderVerificationDialog extends StatefulWidget {
@@ -16,21 +17,26 @@ class OrderVerificationDialog extends StatefulWidget {
     super.key,
     required this.cart,
     required this.method,
-    this.employeeRepository = const EmployeeRepository(),
+    required this.checkout,
   });
 
   final CartController cart;
   final PaymentMethod method;
-  final EmployeeRepository employeeRepository;
+  final Future<Order> Function(String pin) checkout;
 
-  static Future<Employee?> show(
+  static Future<Order?> show(
     BuildContext context, {
     required CartController cart,
     required PaymentMethod method,
+    required Future<Order> Function(String pin) checkout,
   }) {
-    return showDialog<Employee>(
+    return showDialog<Order>(
       context: context,
-      builder: (_) => OrderVerificationDialog(cart: cart, method: method),
+      builder: (_) => OrderVerificationDialog(
+        cart: cart,
+        method: method,
+        checkout: checkout,
+      ),
     );
   }
 
@@ -42,6 +48,7 @@ class OrderVerificationDialog extends StatefulWidget {
 class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
   final TextEditingController _pinController = TextEditingController();
   String? _errorText;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -49,8 +56,8 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
     super.dispose();
   }
 
-  void _confirm() {
-    if (widget.cart.items.isEmpty) {
+  Future<void> _confirm() async {
+    if (widget.cart.items.isEmpty || _isSubmitting) {
       return;
     }
 
@@ -61,13 +68,24 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
       return;
     }
 
-    final Employee? employee = widget.employeeRepository.findByPin(pin);
-    if (employee == null) {
-      setState(() => _errorText = AppStrings.verifyOrderPinWrong);
-      return;
-    }
+    setState(() {
+      _isSubmitting = true;
+      _errorText = null;
+    });
 
-    Navigator.of(context).pop(employee);
+    try {
+      final Order order = await widget.checkout(pin);
+      if (mounted) {
+        Navigator.of(context).pop(order);
+      }
+    } on ApiException {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _errorText = AppStrings.verifyOrderPinWrong;
+        });
+      }
+    }
   }
 
   Color _methodColor(PaymentMethod method) {
@@ -267,14 +285,17 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
                     children: <Widget>[
                       Expanded(
                         child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => Navigator.of(context).pop(),
                           child: const Text(AppStrings.cancel),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: items.isEmpty ? null : _confirm,
+                          onPressed:
+                              items.isEmpty || _isSubmitting ? null : _confirm,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.onPanel,
@@ -284,7 +305,16 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: const Text(AppStrings.verifyOrderConfirm),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.onPanel,
+                                  ),
+                                )
+                              : const Text(AppStrings.verifyOrderConfirm),
                         ),
                       ),
                     ],

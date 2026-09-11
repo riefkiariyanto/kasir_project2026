@@ -1,50 +1,53 @@
+import '../../../core/data/api_client.dart';
 import 'employee.dart';
 
 class EmployeeRepository {
-  const EmployeeRepository();
+  const EmployeeRepository({this.api = const ApiClient()});
+
+  final ApiClient api;
 
   static const int pinLength = 6;
 
-  static final List<Employee> _employees = <Employee>[
-    const Employee(
-      id: 'e1',
-      name: 'Siti Aminah',
-      pin: '123456',
-      phone: '081234567890',
-    ),
-    const Employee(
-      id: 'e2',
-      name: 'Budi Santoso',
-      pin: '654321',
-      phone: '081298765432',
-    ),
-  ];
-
-  List<Employee> fetchAll() => List<Employee>.from(_employees);
-
-  Employee? findByPin(String pin) {
-    for (final Employee employee in _employees) {
-      if (employee.pin == pin) {
-        return employee;
-      }
-    }
-    return null;
+  Future<List<Employee>> fetchAll() async {
+    final List<dynamic> data = await api.get('/api/employees') as List<dynamic>;
+    return data.map((dynamic e) => Employee.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  void add(Employee employee) {
-    _employees.add(employee);
+  /// Public, id+name only — dipakai konteks kasir yang belum login admin (mis. filter pegawai di Riwayat Transaksi).
+  Future<List<Employee>> fetchNames() async {
+    final List<dynamic> data = await api.get('/api/employees/names') as List<dynamic>;
+    return data.map((dynamic e) => Employee.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  void update(Employee updatedEmployee) {
-    final int index = _employees.indexWhere(
-      (Employee e) => e.id == updatedEmployee.id,
-    );
-    if (index != -1) {
-      _employees[index] = updatedEmployee;
-    }
+  Future<Employee> verifyPin(String pin) async {
+    final dynamic data = await api.post('/api/employees/verify-pin', <String, dynamic>{
+      'pin': pin,
+    });
+    return Employee.fromJson(data as Map<String, dynamic>);
   }
 
-  void delete(String id) {
-    _employees.removeWhere((Employee e) => e.id == id);
+  Future<void> add({required String name, String? phone, required String pin}) async {
+    await api.post('/api/employees', <String, dynamic>{
+      'name': name,
+      'phone': phone,
+      'pin': pin,
+    });
+  }
+
+  Future<void> update({
+    required String id,
+    required String name,
+    String? phone,
+    String? pin,
+  }) async {
+    await api.put('/api/employees/$id', <String, dynamic>{
+      'name': name,
+      'phone': phone,
+      if (pin != null) 'pin': pin,
+    });
+  }
+
+  Future<void> delete(String id) async {
+    await api.delete('/api/employees/$id');
   }
 }

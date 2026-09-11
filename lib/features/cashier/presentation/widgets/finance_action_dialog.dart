@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/rupiah_input_formatter.dart';
@@ -42,6 +43,7 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
   final TextEditingController _pinController = TextEditingController();
   String? _amountError;
   String? _pinError;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -50,7 +52,11 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isSubmitting) {
+      return;
+    }
+
     final int amount = CurrencyFormatter.parseRupiah(_amountController.text);
     final String pin = _pinController.text.trim();
 
@@ -66,17 +72,28 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
     if (pin.length != EmployeeRepository.pinLength) {
       setState(() => _pinError = AppStrings.verifyOrderPinHint);
       hasError = true;
-    } else {
-      final Employee? employee = widget.employeeRepository.findByPin(pin);
-      if (employee == null) {
-        setState(() => _pinError = AppStrings.verifyOrderPinWrong);
-        hasError = true;
-      } else {
-        setState(() => _pinError = null);
-        if (!hasError) {
-          Navigator.of(context).pop((employee: employee, amount: amount));
-          return;
-        }
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _pinError = null;
+    });
+
+    try {
+      final Employee employee = await widget.employeeRepository.verifyPin(pin);
+      if (mounted) {
+        Navigator.of(context).pop((employee: employee, amount: amount));
+      }
+    } on ApiException {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _pinError = AppStrings.verifyOrderPinWrong;
+        });
       }
     }
   }
@@ -223,14 +240,16 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                 children: <Widget>[
                   Expanded(
                     child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: const Text(AppStrings.cancel),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _submit,
+                      onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.onPanel,
@@ -239,7 +258,16 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Text(AppStrings.financeSave),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.onPanel,
+                              ),
+                            )
+                          : const Text(AppStrings.financeSave),
                     ),
                   ),
                 ],

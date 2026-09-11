@@ -45,6 +45,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   PaymentMethod? _ordersFilterMethod;
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
   bool _ordersGridView = false;
+  List<Order>? _orders;
+  List<Employee>? _employees;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<Order> orders = await widget.orderRepository.fetchAll();
+    final List<Employee> employees = await widget.employeeRepository.fetchAll();
+    if (mounted) {
+      setState(() {
+        _orders = orders;
+        _employees = employees;
+      });
+    }
+  }
 
   void _pushHistory(int from) {
     _navHistory.add(from);
@@ -78,7 +97,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
-    return widget.orderRepository.fetchAll().where((Order order) {
+    final List<Order> all = _orders ?? const <Order>[];
+    return all.where((Order order) {
       final bool matchesEmployee =
           _ordersFilterEmployee == null ||
           order.cashierName == _ordersFilterEmployee;
@@ -220,9 +240,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return;
     }
 
-    setState(() {
-      widget.orderRepository.remove(order.id);
-    });
+    await widget.orderRepository.remove(order.id);
+    await _load();
   }
 
   void _onNavSelected(int index) {
@@ -266,6 +285,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildOrdersTab(BuildContext context) {
+    if (_orders == null || _employees == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         return Align(
@@ -417,8 +439,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildEmployeeDropdown(BuildContext context) {
-    final List<String> employeeNames = widget.employeeRepository
-        .fetchAll()
+    final List<String> employeeNames = (_employees ?? const <Employee>[])
         .map((Employee employee) => employee.name)
         .toList();
 

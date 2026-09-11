@@ -50,6 +50,38 @@ class _CashierPageState extends State<CashierPage> {
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
   bool _ordersGridView = false;
 
+  List<ProductCategory>? _categories;
+  List<Order>? _orders;
+  List<Employee>? _employees;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final List<ProductCategory> categories =
+        await widget.categoryRepository.fetchAll();
+    if (mounted) {
+      setState(() => _categories = categories);
+    }
+  }
+
+  Future<void> _loadOrders() async {
+    final List<Order> orders = await widget.orderRepository.fetchAll();
+    if (mounted) {
+      setState(() => _orders = orders);
+    }
+  }
+
+  Future<void> _loadEmployees() async {
+    final List<Employee> employees = await widget.employeeRepository.fetchNames();
+    if (mounted) {
+      setState(() => _employees = employees);
+    }
+  }
+
   void _pushHistory(int from) {
     _navHistory.add(from);
     if (_navHistory.length > 20) _navHistory.removeAt(0);
@@ -75,7 +107,7 @@ class _CashierPageState extends State<CashierPage> {
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
     final DateTime now = DateTime.now();
-    return widget.orderRepository.fetchAll().where((Order order) {
+    return (_orders ?? const <Order>[]).where((Order order) {
       final bool matchesEmployee =
           _ordersFilterEmployee == null ||
           order.cashierName == _ordersFilterEmployee;
@@ -131,6 +163,8 @@ class _CashierPageState extends State<CashierPage> {
         _resetOrdersFilters();
         _navIndex = 2;
       });
+      _loadOrders();
+      _loadEmployees();
     } else if (result == RouteResults.openFinance && mounted) {
       setState(() {
         _navIndex = 3;
@@ -144,6 +178,8 @@ class _CashierPageState extends State<CashierPage> {
       _resetOrdersFilters();
       _navIndex = 2;
     });
+    _loadOrders();
+    _loadEmployees();
   }
 
   void _onNavSelected(int index) {
@@ -161,6 +197,10 @@ class _CashierPageState extends State<CashierPage> {
       }
       _navIndex = index;
     });
+    if (index == 2) {
+      _loadOrders();
+      _loadEmployees();
+    }
   }
 
   void _openFinance() {
@@ -181,8 +221,11 @@ class _CashierPageState extends State<CashierPage> {
   Widget _buildBody(BuildContext context) {
     switch (_navIndex) {
       case 0:
+        if (_categories == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
         return _CashierHomeTab(
-          categories: widget.categoryRepository.fetchAll(),
+          categories: _categories!,
           onCategoryTap: (ProductCategory category) =>
               _openTransaction(category: category.name),
           onBannerTap: () => _openTransaction(),
@@ -200,6 +243,9 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Widget _buildOrdersTab(BuildContext context) {
+    if (_orders == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         return Align(
@@ -391,8 +437,7 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Widget _buildEmployeeDropdown(BuildContext context) {
-    final List<String> employeeNames = widget.employeeRepository
-        .fetchAll()
+    final List<String> employeeNames = (_employees ?? const <Employee>[])
         .map((Employee employee) => employee.name)
         .toList();
 

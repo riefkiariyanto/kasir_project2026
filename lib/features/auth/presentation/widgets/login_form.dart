@@ -42,11 +42,23 @@ class _LoginFormState extends State<LoginForm> {
     super.dispose();
   }
 
-  void _submit() {
-    final bool isValid = widget.authRepository.login(
+  bool _isLoading = false;
+
+  Future<void> _submit() async {
+    if (_isLoading) {
+      return;
+    }
+    setState(() => _isLoading = true);
+
+    final bool isValid = await widget.authRepository.login(
       username: _usernameController.text,
       password: _passwordController.text,
     );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isLoading = false);
 
     if (isValid) {
       widget.onSuccess();
@@ -82,16 +94,25 @@ class _LoginFormState extends State<LoginForm> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _submit,
+            onPressed: _isLoading ? null : _submit,
             style: _buttonStyle,
-            child: const Text(
-              AppStrings.loginButton,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.onPanel,
+                    ),
+                  )
+                : const Text(
+                    AppStrings.loginButton,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
           ),
         ],
       ),

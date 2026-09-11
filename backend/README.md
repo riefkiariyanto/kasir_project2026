@@ -74,6 +74,7 @@ Semua endpoint di-prefix `/api`. Auth admin pakai **session cookie** (`express-s
 | POST | `/api/products` | admin | multipart: `name, price, categoryId, tag, image` |
 | PUT | `/api/products/:id` | admin | multipart, sama seperti POST |
 | DELETE | `/api/products/:id` | admin | |
+| POST | `/api/employees/verify-pin` | - | `{ pin }` → `{ id, name }` kalau cocok, 401 kalau tidak (dipakai flow catat kas dari kasir, tidak pernah expose pin_hash) |
 | GET | `/api/employees` | admin | list pegawai |
 | POST | `/api/employees` | admin | `{ name, phone, pin }` |
 | PUT | `/api/employees/:id` | admin | `{ name, phone, pin? }` |

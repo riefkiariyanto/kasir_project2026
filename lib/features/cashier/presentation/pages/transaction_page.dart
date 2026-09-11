@@ -9,7 +9,7 @@ import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../data/cart_controller.dart';
 import '../../data/cart_item.dart';
-import '../../data/employee.dart';
+import '../../data/category_repository.dart';
 import '../../data/order.dart';
 import '../../data/order_repository.dart';
 import '../../data/product_repository.dart';
@@ -24,11 +24,13 @@ class TransactionPage extends StatefulWidget {
   const TransactionPage({
     super.key,
     this.productRepository = const ProductRepository(),
+    this.categoryRepository = const CategoryRepository(),
     this.orderRepository = const OrderRepository(),
     this.initialCategory,
   });
 
   final ProductRepository productRepository;
+  final CategoryRepository categoryRepository;
   final OrderRepository orderRepository;
   final String? initialCategory;
 
@@ -37,18 +39,38 @@ class TransactionPage extends StatefulWidget {
 }
 
 class _TransactionPageState extends State<TransactionPage> {
-  late final List<Product> _products = widget.productRepository.fetchAll();
+  List<Product>? _products;
   final CartController _cart = CartController();
 
   String _query = '';
   late String? _selectedCategory = widget.initialCategory;
   PaymentMethod? _paymentMethod;
 
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<ProductCategory> categories =
+        await widget.categoryRepository.fetchAll();
+    final List<Product> products = await widget.productRepository.fetchAll(
+      categories,
+    );
+    if (mounted) {
+      setState(() => _products = products);
+    }
+  }
+
   List<String> get _categories =>
-      _products.map((Product p) => p.category).toSet().toList();
+      (_products ?? const <Product>[])
+          .map((Product p) => p.category)
+          .toSet()
+          .toList();
 
   List<Product> get _filteredProducts {
-    return _products.where((Product product) {
+    return (_products ?? const <Product>[]).where((Product product) {
       final bool matchesCategory =
           _selectedCategory == null || product.category == _selectedCategory;
       final bool matchesQuery =
@@ -64,26 +86,20 @@ class _TransactionPageState extends State<TransactionPage> {
       return;
     }
 
-    final Employee? cashier = await OrderVerificationDialog.show(
+    final Order? order = await OrderVerificationDialog.show(
       context,
       cart: _cart,
       method: method,
-    );
-
-    if (cashier == null || !mounted) {
-      return;
-    }
-
-    widget.orderRepository.add(
-      Order(
-        id: widget.orderRepository.nextId(),
+      checkout: (String pin) => widget.orderRepository.checkout(
         items: _cart.items,
-        total: _cart.total,
         method: method,
-        createdAt: DateTime.now(),
-        cashierName: cashier.name,
+        cashierPin: pin,
       ),
     );
+
+    if (order == null || !mounted) {
+      return;
+    }
 
     setState(() {
       _cart.clear();
@@ -145,7 +161,9 @@ class _TransactionPageState extends State<TransactionPage> {
         currentIndex: 1,
         onSelected: _onNavSelected,
       ),
-      body: LayoutBuilder(
+      body: _products == null
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final bool isWide = constraints.maxWidth >= 700;
 

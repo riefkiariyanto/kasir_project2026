@@ -33,7 +33,8 @@ class AdminCatalogPage extends StatefulWidget {
 class _AdminCatalogPageState extends State<AdminCatalogPage> {
   late final ProductRepository _repository = widget.productRepository;
   late final CategoryRepository _categoryRepository = widget.categoryRepository;
-  late List<Product> _products = _repository.fetchAll();
+  List<Product>? _products;
+  List<ProductCategory>? _categories;
   String? _selectedCategory;
   String _searchQuery = '';
   bool _gridView = true;
@@ -41,9 +42,27 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   bool _showAddForm = false;
   bool _panelCollapsed = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<ProductCategory> categories = await _categoryRepository.fetchAll();
+    final List<Product> products = await _repository.fetchAll(categories);
+    if (mounted) {
+      setState(() {
+        _categories = categories;
+        _products = products;
+      });
+    }
+  }
+
   bool get _isFormVisible => _editingProduct != null || _showAddForm;
 
-  List<Product> get _visibleProducts => _products.where((Product product) {
+  List<Product> get _visibleProducts =>
+      (_products ?? const <Product>[]).where((Product product) {
     final bool matchesCategory =
         _selectedCategory == null || product.category == _selectedCategory;
     final String query = _searchQuery.trim().toLowerCase();
@@ -76,18 +95,39 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
     });
   }
 
-  void _saveProduct(Product product) {
-    setState(() {
-      if (_editingProduct == null) {
-        _repository.add(product);
-      } else {
-        _repository.update(product);
-      }
-      _products = _repository.fetchAll();
-      _editingProduct = null;
-      _showAddForm = false;
-      _panelCollapsed = true;
-    });
+  Future<void> _saveProduct({
+    required String name,
+    required int price,
+    required String categoryId,
+    String? tag,
+    String? imagePath,
+  }) async {
+    if (_editingProduct == null) {
+      await _repository.add(
+        name: name,
+        price: price,
+        categoryId: categoryId,
+        tag: tag,
+        imagePath: imagePath,
+      );
+    } else {
+      await _repository.update(
+        id: _editingProduct!.id,
+        name: name,
+        price: price,
+        categoryId: categoryId,
+        tag: tag,
+        imagePath: imagePath,
+      );
+    }
+    await _load();
+    if (mounted) {
+      setState(() {
+        _editingProduct = null;
+        _showAddForm = false;
+        _panelCollapsed = true;
+      });
+    }
   }
 
   Future<void> _deleteProduct(Product product) async {
@@ -113,10 +153,8 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
       return;
     }
 
-    setState(() {
-      _repository.delete(product.id);
-      _products = _repository.fetchAll();
-    });
+    await _repository.delete(product.id);
+    await _load();
   }
 
   @override
@@ -159,7 +197,9 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         currentIndex: 2,
         onSelected: _onNavSelected,
       ),
-      body: LayoutBuilder(
+      body: _products == null || _categories == null
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final double editorWidth = constraints.maxWidth >= 700
               ? 360
@@ -180,8 +220,10 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                             child: _isFormVisible
                                 ? _ProductEditorPanel(
                                     product: _editingProduct,
+                                    categories: _categories ?? const <ProductCategory>[],
                                     categoryRepository: _categoryRepository,
                                     onSave: _saveProduct,
+                                    onCategoriesChanged: _load,
                                     onCancel: _closeEditor,
                                   )
                                 : _AddProductPlaceholder(onTap: _startAddNew),
@@ -198,8 +240,10 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                         child: _isFormVisible
                             ? _ProductEditorPanel(
                                 product: _editingProduct,
+                                categories: _categories ?? const <ProductCategory>[],
                                 categoryRepository: _categoryRepository,
                                 onSave: _saveProduct,
+                                onCategoriesChanged: _load,
                                 onCancel: _closeEditor,
                               )
                             : _AddProductPlaceholder(onTap: _startAddNew),
@@ -257,8 +301,7 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   }
 
   Widget _buildCategoryFilterAndToggle(BuildContext context) {
-    final List<String> categories = _categoryRepository
-        .fetchAll()
+    final List<String> categories = (_categories ?? const <ProductCategory>[])
         .map((ProductCategory category) => category.name)
         .toList();
 
@@ -555,6 +598,14 @@ class _ProductThumbnail extends StatelessWidget {
             (BuildContext context, Object error, StackTrace? stackTrace) =>
                 _buildPlaceholder(Icons.broken_image_outlined),
       );
+    } else if (imageAsset!.startsWith('http')) {
+      image = Image.network(
+        imageAsset!,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (BuildContext context, Object error, StackTrace? stackTrace) =>
+                _buildPlaceholder(Icons.broken_image_outlined),
+      );
     } else {
       image = Image.file(
         File(imageAsset!),
@@ -612,17 +663,29 @@ class _AddProductPlaceholder extends StatelessWidget {
   }
 }
 
+typedef ProductSaveCallback = Future<void> Function({
+  required String name,
+  required int price,
+  required String categoryId,
+  String? tag,
+  String? imagePath,
+});
+
 class _ProductEditorPanel extends StatefulWidget {
   const _ProductEditorPanel({
     this.product,
+    required this.categories,
     required this.categoryRepository,
     required this.onSave,
+    required this.onCategoriesChanged,
     required this.onCancel,
   });
 
   final Product? product;
+  final List<ProductCategory> categories;
   final CategoryRepository categoryRepository;
-  final ValueChanged<Product> onSave;
+  final ProductSaveCallback onSave;
+  final Future<void> Function() onCategoriesChanged;
   final VoidCallback onCancel;
 
   @override
@@ -634,9 +697,20 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
 
   late TextEditingController _name;
   late TextEditingController _price;
-  String? _imagePath;
+  String? _existingImageAsset;
+  String? _pickedImagePath;
   String? _selectedCategory;
-  late List<String> _categoryNames;
+  bool _isSaving = false;
+
+  List<String> get _categoryNames {
+    final List<String> names =
+        widget.categories.map((ProductCategory category) => category.name).toList();
+    final String? selected = _selectedCategory;
+    if (selected != null && !names.contains(selected)) {
+      names.add(selected);
+    }
+    return names;
+  }
 
   @override
   void initState() {
@@ -663,20 +737,9 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
               widget.product!.price,
             ).replaceFirst('Rp', ''),
     );
-    _imagePath = widget.product?.imageAsset;
+    _existingImageAsset = widget.product?.imageAsset;
+    _pickedImagePath = null;
     _selectedCategory = widget.product?.category;
-    _refreshCategoryNames();
-  }
-
-  void _refreshCategoryNames() {
-    _categoryNames = widget.categoryRepository
-        .fetchAll()
-        .map((ProductCategory category) => category.name)
-        .toList();
-    final String? selected = _selectedCategory;
-    if (selected != null && !_categoryNames.contains(selected)) {
-      _categoryNames = <String>[..._categoryNames, selected];
-    }
   }
 
   @override
@@ -694,7 +757,7 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
     if (picked == null) {
       return;
     }
-    setState(() => _imagePath = picked.path);
+    setState(() => _pickedImagePath = picked.path);
   }
 
   Future<void> _addNewCategory() async {
@@ -725,27 +788,34 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
       return;
     }
 
-    widget.categoryRepository.add(
-      ProductCategory(name: name, icon: Icons.category_outlined),
-    );
-    setState(() {
-      _selectedCategory = name;
-      _refreshCategoryNames();
-    });
+    await widget.categoryRepository.add(name);
+    await widget.onCategoriesChanged();
+    if (mounted) {
+      setState(() => _selectedCategory = name);
+    }
   }
 
-  void _save() {
-    final String id =
-        widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
-    widget.onSave(
-      Product(
-        id: id,
-        name: _name.text.trim(),
-        price: int.tryParse(_price.text.replaceAll('.', '')) ?? 0,
-        category: _selectedCategory ?? '',
-        imageAsset: _imagePath,
-      ),
+  Future<void> _save() async {
+    final ProductCategory? category = widget.categories
+        .cast<ProductCategory?>()
+        .firstWhere(
+          (ProductCategory? c) => c?.name == _selectedCategory,
+          orElse: () => null,
+        );
+    if (category == null) {
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    await widget.onSave(
+      name: _name.text.trim(),
+      price: int.tryParse(_price.text.replaceAll('.', '')) ?? 0,
+      categoryId: category.id,
+      imagePath: _pickedImagePath,
     );
+    if (mounted) {
+      setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -830,7 +900,7 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _save,
+                    onPressed: _isSaving ? null : _save,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(46),
                       backgroundColor: AppColors.primary,
@@ -840,7 +910,16 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Simpan'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.onPanel,
+                            ),
+                          )
+                        : const Text('Simpan'),
                   ),
                 ),
               ],
@@ -864,7 +943,7 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            _ProductThumbnail(imageAsset: _imagePath),
+            _ProductThumbnail(imageAsset: _pickedImagePath ?? _existingImageAsset),
             Positioned(
               right: 8,
               bottom: 8,

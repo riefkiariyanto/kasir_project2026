@@ -25,7 +25,20 @@ class AdminSettingsPage extends StatefulWidget {
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
   late final CategoryRepository _repository = widget.categoryRepository;
-  late List<ProductCategory> _categories = _repository.fetchAll();
+  List<ProductCategory>? _categories;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<ProductCategory> categories = await _repository.fetchAll();
+    if (mounted) {
+      setState(() => _categories = categories);
+    }
+  }
 
   Future<void> _openChangePassword() async {
     final bool? changed = await showDialog<bool>(
@@ -92,14 +105,16 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             child: const Text(AppStrings.cancel),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               if (formKey.currentState!.validate()) {
-                StoreRepository.update(StoreInfo(
+                await const StoreRepository().update(StoreInfo(
                   name: nameCtrl.text.trim(),
                   address: addressCtrl.text.trim(),
                   phone: phoneCtrl.text.trim(),
                 ));
-                Navigator.of(context).pop(true);
+                if (context.mounted) {
+                  Navigator.of(context).pop(true);
+                }
               }
             },
             child: const Text(AppStrings.save),
@@ -151,12 +166,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       return;
     }
 
-    setState(() {
-      _repository.add(
-        ProductCategory(name: name, icon: Icons.category_outlined),
-      );
-      _categories = _repository.fetchAll();
-    });
+    await _repository.add(name);
+    await _load();
   }
 
   Future<void> _deleteCategory(ProductCategory category) async {
@@ -182,10 +193,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       return;
     }
 
-    setState(() {
-      _repository.delete(category.name);
-      _categories = _repository.fetchAll();
-    });
+    await _repository.delete(category.id);
+    await _load();
   }
 
   void _onNavSelected(int index) {
@@ -413,7 +422,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           spacing: 10,
           runSpacing: 10,
           children: <Widget>[
-            ..._categories.map(
+            ...(_categories ?? const <ProductCategory>[]).map(
               (ProductCategory category) => InputChip(
                 label: Text(category.name),
                 labelStyle: TextStyle(
@@ -511,6 +520,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   final TextEditingController _newPassword = TextEditingController();
   final TextEditingController _confirmPassword = TextEditingController();
   String? _errorText;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -520,7 +530,11 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isLoading) {
+      return;
+    }
+
     final String current = _currentPassword.text;
     final String newPassword = _newPassword.text;
     final String confirm = _confirmPassword.text;
@@ -534,10 +548,17 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       return;
     }
 
-    final bool success = widget.authRepository.changePassword(
+    setState(() => _isLoading = true);
+
+    final bool success = await widget.authRepository.changePassword(
       currentPassword: current,
       newPassword: newPassword,
     );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isLoading = false);
 
     if (!success) {
       setState(() => _errorText = AppStrings.currentPasswordWrong);
@@ -613,7 +634,16 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text(AppStrings.cancel),
         ),
-        FilledButton(onPressed: _submit, child: const Text(AppStrings.save)),
+        FilledButton(
+          onPressed: _isLoading ? null : _submit,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text(AppStrings.save),
+        ),
       ],
     );
   }

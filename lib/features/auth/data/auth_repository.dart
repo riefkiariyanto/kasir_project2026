@@ -1,21 +1,34 @@
+import '../../../core/data/api_client.dart';
+
 class AuthRepository {
-  const AuthRepository();
+  const AuthRepository({this.api = const ApiClient()});
 
-  static const String _validUsername = 'admin';
-  static String _password = 'admin';
+  final ApiClient api;
 
-  bool login({required String username, required String password}) {
-    return username.trim() == _validUsername && password == _password;
-  }
-
-  bool changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) {
-    if (currentPassword != _password) {
+  Future<bool> login({required String username, required String password}) async {
+    try {
+      await api.post('/api/auth/login', <String, dynamic>{
+        'username': username,
+        'password': password,
+      });
+      return true;
+    } on ApiException {
       return false;
     }
-    _password = newPassword;
-    return true;
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await api.post('/api/auth/change-password', <String, dynamic>{
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      });
+      return true;
+    } on ApiException {
+      return false;
+    }
   }
 }

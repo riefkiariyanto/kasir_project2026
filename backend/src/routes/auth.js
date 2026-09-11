@@ -12,7 +12,9 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Username atau password salah' });
   }
   req.session.adminId = admin.id;
-  res.json({ id: admin.id, username: admin.username });
+  // token = raw session id, dikirim balik di body juga (bukan cuma Set-Cookie) supaya
+  // client yang tidak bisa baca Set-Cookie (browser JS) tetap bisa kirim ulang via header.
+  res.json({ id: admin.id, username: admin.username, token: req.sessionID });
 });
 
 router.post('/logout', (req, res) => {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/constants/app_strings.dart';
+import 'core/data/store_repository.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
@@ -13,8 +14,19 @@ import 'features/auth/presentation/pages/login_page.dart';
 import 'features/cashier/presentation/pages/cashier_page.dart';
 import 'features/cashier/presentation/pages/transaction_page.dart';
 
-class KasirApp extends StatelessWidget {
+class KasirApp extends StatefulWidget {
   const KasirApp({super.key});
+
+  @override
+  State<KasirApp> createState() => _KasirAppState();
+}
+
+class _KasirAppState extends State<KasirApp> {
+  @override
+  void initState() {
+    super.initState();
+    StoreRepository().fetch();
+  }
 
   @override
   Widget build(BuildContext context) {

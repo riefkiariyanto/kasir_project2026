@@ -57,6 +57,29 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   bool _donutByCategory = false;
   String? _employeeFilter;
 
+  List<Order>? _orders;
+  List<FinanceEntry>? _financeEntries;
+  List<Employee>? _employees;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<Order> orders = await widget.orderRepository.fetchAll();
+    final List<FinanceEntry> finance = await widget.financeRepository.fetchAll();
+    final List<Employee> employees = await widget.employeeRepository.fetchAll();
+    if (mounted) {
+      setState(() {
+        _orders = orders;
+        _financeEntries = finance;
+        _employees = employees;
+      });
+    }
+  }
+
   bool _isSameDate(DateTime a, DateTime b) => AppDateUtils.isSameDate(a, b);
 
   bool _isSameMonth(DateTime a, DateTime b) => AppDateUtils.isSameMonth(a, b);
@@ -64,7 +87,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   bool _isSameWeek(DateTime a, DateTime b) => AppDateUtils.isSameWeek(a, b);
 
   List<Order> get _filteredOrders {
-    final List<Order> all = widget.orderRepository.fetchAll();
+    final List<Order> all = _orders ?? const <Order>[];
     final DateTime anchor = _selectedDate ?? DateTime.now();
     List<Order> byPeriod;
     switch (_filterMode) {
@@ -101,7 +124,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       _filteredOrders.fold(0, (int sum, Order order) => sum + order.itemCount);
 
   List<FinanceEntry> get _filteredFinance {
-    final List<FinanceEntry> all = widget.financeRepository.fetchAll();
+    final List<FinanceEntry> all = _financeEntries ?? const <FinanceEntry>[];
     final DateTime anchor = _selectedDate ?? DateTime.now();
     List<FinanceEntry> byPeriod;
     switch (_filterMode) {
@@ -328,7 +351,9 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         currentIndex: 1,
         onSelected: (int index) => _onNavSelected(context, index),
       ),
-      body: Align(
+      body: _orders == null || _financeEntries == null || _employees == null
+          ? const Center(child: CircularProgressIndicator())
+          : Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1080),
@@ -680,7 +705,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   }
 
   Widget _buildEmployeeFilterButton(BuildContext context) {
-    final List<Employee> employees = widget.employeeRepository.fetchAll();
+    final List<Employee> employees = _employees ?? const <Employee>[];
     final String label = _employeeFilter ?? 'Semua Pegawai';
 
     return PopupMenuButton<String?>(

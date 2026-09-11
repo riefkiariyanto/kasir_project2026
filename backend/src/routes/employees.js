@@ -5,6 +5,23 @@ const requireAdmin = require('../middleware/requireAdmin');
 
 const router = express.Router();
 
+router.post('/verify-pin', async (req, res) => {
+  const { pin } = req.body;
+  const { rows: employees } = await pool.query('select id, name, pin_hash from employees');
+  for (const e of employees) {
+    if (await bcrypt.compare(pin || '', e.pin_hash)) {
+      return res.json({ id: e.id, name: e.name });
+    }
+  }
+  res.status(401).json({ error: 'PIN salah' });
+});
+
+// Public: hanya id+name, dipakai dropdown filter kasir yang belum login admin
+router.get('/names', async (req, res) => {
+  const { rows } = await pool.query('select id, name from employees order by name');
+  res.json(rows);
+});
+
 router.get('/', requireAdmin, async (req, res) => {
   const { rows } = await pool.query('select id, name, phone, created_at from employees order by created_at');
   res.json(rows);

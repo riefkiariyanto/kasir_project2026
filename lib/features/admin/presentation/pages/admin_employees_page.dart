@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../widgets/admin_bottom_nav.dart';
@@ -23,15 +25,29 @@ class AdminEmployeesPage extends StatefulWidget {
 
 class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
   late final EmployeeRepository _repository = widget.employeeRepository;
-  late List<Employee> _employees = _repository.fetchAll();
+  List<Employee>? _employees;
   String _searchQuery = '';
 
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final List<Employee> employees = await _repository.fetchAll();
+    if (mounted) {
+      setState(() => _employees = employees);
+    }
+  }
+
   List<Employee> get _visibleEmployees {
+    final List<Employee> employees = _employees ?? const <Employee>[];
     final String query = _searchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return _employees;
+      return employees;
     }
-    return _employees
+    return employees
         .where(
           (Employee employee) =>
               employee.name.toLowerCase().contains(query) ||
@@ -41,26 +57,42 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
   }
 
   Future<void> _openEditor({Employee? employee}) async {
-    final Employee? result = await showDialog<Employee>(
+    final _EmployeeFormResult? result = await showDialog<_EmployeeFormResult>(
       context: context,
       builder: (BuildContext context) => _EmployeeEditorDialog(
         employee: employee,
-        employeeRepository: _repository,
       ),
     );
 
-    if (result == null) {
+    if (result == null || !mounted) {
       return;
     }
 
-    setState(() {
+    try {
       if (employee == null) {
-        _repository.add(result);
+        await _repository.add(
+          name: result.name,
+          phone: result.phone,
+          pin: result.pin!,
+        );
       } else {
-        _repository.update(result);
+        await _repository.update(
+          id: employee.id,
+          name: result.name,
+          phone: result.phone,
+          pin: result.pin,
+        );
       }
-      _employees = _repository.fetchAll();
-    });
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        showAppDialog(
+          context,
+          title: AppStrings.employeeAddTitle,
+          message: e.message,
+        );
+      }
+    }
   }
 
   Future<void> _deleteEmployee(Employee employee) async {
@@ -86,10 +118,8 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
       return;
     }
 
-    setState(() {
-      _repository.delete(employee.id);
-      _employees = _repository.fetchAll();
-    });
+    await _repository.delete(employee.id);
+    await _load();
   }
 
   @override
@@ -133,21 +163,23 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
         currentIndex: -1,
         onSelected: _onNavSelected,
       ),
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1080),
-          child: Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: _buildSearchField(),
+      body: _employees == null
+          ? const Center(child: CircularProgressIndicator())
+          : Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1080),
+                child: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: _buildSearchField(),
+                    ),
+                    Expanded(child: _buildEmployeeList()),
+                  ],
+                ),
               ),
-              Expanded(child: _buildEmployeeList()),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -236,14 +268,6 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
                                 color: AppColors.onSurface,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'PIN: ${employee.pin}',
-                              style: TextStyle(
-                                fontSize: 14.4,
-                                color: AppColors.onSurfaceMuted,
-                              ),
-                            ),
                             if (employee.phone != null &&
                                 employee.phone!.isNotEmpty) ...<Widget>[
                               const SizedBox(height: 2),
@@ -282,13 +306,9 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
 }
 
 class _EmployeeEditorDialog extends StatefulWidget {
-  const _EmployeeEditorDialog({
-    this.employee,
-    required this.employeeRepository,
-  });
+  const _EmployeeEditorDialog({this.employee});
 
   final Employee? employee;
-  final EmployeeRepository employeeRepository;
 
   @override
   State<_EmployeeEditorDialog> createState() => _EmployeeEditorDialogState();
@@ -301,9 +321,7 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
   late final TextEditingController _phone = TextEditingController(
     text: widget.employee?.phone,
   );
-  late final TextEditingController _pin = TextEditingController(
-    text: widget.employee?.pin,
-  );
+  late final TextEditingController _pin = TextEditingController();
   String? _errorText;
 
   @override
@@ -324,21 +342,11 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
       return;
     }
 
-    final Employee? existingWithPin = widget.employeeRepository.findByPin(pin);
-    if (existingWithPin != null && existingWithPin.id != widget.employee?.id) {
-      setState(() => _errorText = AppStrings.employeePinDuplicate);
-      return;
-    }
-
-    final String id =
-        widget.employee?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
-
     Navigator.of(context).pop(
-      Employee(
-        id: id,
+      _EmployeeFormResult(
         name: name,
-        pin: pin,
         phone: phone.isEmpty ? null : phone,
+        pin: pin,
       ),
     );
   }
@@ -423,4 +431,12 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
       ],
     );
   }
+}
+
+class _EmployeeFormResult {
+  const _EmployeeFormResult({required this.name, this.phone, this.pin});
+
+  final String name;
+  final String? phone;
+  final String? pin;
 }
