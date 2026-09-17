@@ -1,11 +1,12 @@
 const express = require('express');
 const pool = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 
 // Ringkasan omzet + breakdown per kategori untuk rentang tanggal
-router.get('/summary', requireAdmin, async (req, res) => {
+router.get('/summary', requireAdmin, asyncHandler(async (req, res) => {
   const { from, to } = req.query;
   const { rows } = await pool.query(
     `select
@@ -25,6 +26,6 @@ router.get('/summary', requireAdmin, async (req, res) => {
     [from, to]
   );
   res.json({ ...totals[0], categories: rows });
-});
+}));
 
 module.exports = router;

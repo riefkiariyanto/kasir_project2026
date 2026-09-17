@@ -3,16 +3,17 @@ const multer = require('multer');
 const path = require('path');
 const pool = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 const upload = multer({ dest: process.env.UPLOAD_DIR || './uploads' });
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { rows } = await pool.query('select * from products order by created_at');
   res.json(rows);
-});
+}));
 
-router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
+router.post('/', requireAdmin, upload.single('image'), asyncHandler(async (req, res) => {
   const { name, price, categoryId, tag } = req.body;
   const imagePath = req.file ? path.basename(req.file.path) : null;
   const { rows } = await pool.query(
@@ -20,9 +21,9 @@ router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
     [name, price, categoryId || null, tag || null, imagePath]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
-router.put('/:id', requireAdmin, upload.single('image'), async (req, res) => {
+router.put('/:id', requireAdmin, upload.single('image'), asyncHandler(async (req, res) => {
   const { name, price, categoryId, tag } = req.body;
   const imagePath = req.file ? path.basename(req.file.path) : req.body.imagePath || null;
   const { rows } = await pool.query(
@@ -30,11 +31,11 @@ router.put('/:id', requireAdmin, upload.single('image'), async (req, res) => {
     [name, price, categoryId || null, tag || null, imagePath, req.params.id]
   );
   res.json(rows[0]);
-});
+}));
 
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
   await pool.query('delete from products where id = $1', [req.params.id]);
   res.status(204).end();
-});
+}));
 
 module.exports = router;

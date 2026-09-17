@@ -2,10 +2,11 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `select o.*,
             coalesce(json_agg(oi) filter (where oi.id is not null), '[]') as items
@@ -15,10 +16,10 @@ router.get('/', async (req, res) => {
       order by o.created_at desc`
   );
   res.json(rows);
-});
+}));
 
 // Checkout: verifikasi PIN pegawai lalu insert orders+order_items dalam satu transaction (atomic)
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', asyncHandler(async (req, res) => {
   const { items, method, cashierPin } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'items kosong' });
@@ -57,15 +58,15 @@ router.post('/checkout', async (req, res) => {
   } finally {
     client.release();
   }
-});
+}));
 
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
   await pool.query('delete from orders where id = $1', [req.params.id]);
   res.status(204).end();
-});
+}));
 
 // Hapus massal [from, to); password admin diminta ulang karena tidak bisa dibatalkan.
-router.post('/bulk-delete', requireAdmin, async (req, res) => {
+router.post('/bulk-delete', requireAdmin, asyncHandler(async (req, res) => {
   const { from, to, password } = req.body;
   if (Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to))) {
     return res.status(400).json({ error: 'Rentang tanggal tidak valid' });
@@ -81,7 +82,7 @@ router.post('/bulk-delete', requireAdmin, async (req, res) => {
     [from, to]
   );
   res.json({ deleted: rowCount });
-});
+}));
 
 async function findByPin(employees, pin) {
   for (const e of employees) {
