@@ -49,8 +49,9 @@ class ClayNavBar extends StatelessWidget {
                     customBorder: const StadiumBorder(),
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
+                      // Four items at full padding overflow a phone width.
+                      padding: EdgeInsets.symmetric(
+                        horizontal: icons.length > 3 ? 18 : 30,
                         vertical: 10,
                       ),
                       decoration: isSelected

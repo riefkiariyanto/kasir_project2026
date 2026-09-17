@@ -4,6 +4,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
@@ -170,6 +171,7 @@ class _TransactionPageState extends State<TransactionPage> {
                   onQueryChanged: (String value) =>
                       setState(() => _query = value),
                   products: _filteredProducts,
+                  onRefresh: _load,
                   onProductTap: (Product product) =>
                       setState(() => _cart.add(product)),
                 );
@@ -230,6 +232,7 @@ class _ProductCatalog extends StatelessWidget {
     required this.onQueryChanged,
     required this.products,
     required this.onProductTap,
+    required this.onRefresh,
   });
 
   final List<String> categories;
@@ -238,6 +241,7 @@ class _ProductCatalog extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final List<Product> products;
   final ValueChanged<Product> onProductTap;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -259,14 +263,19 @@ class _ProductCatalog extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Expanded(
-            child: products.isEmpty
-                ? Center(
-                    child: Text(
-                      AppStrings.comingSoon,
-                      style: TextStyle(color: AppColors.onSurface),
-                    ),
-                  )
-                : ProductGrid(products: products, onProductTap: onProductTap),
+            child: PullToRefresh(
+              onRefresh: onRefresh,
+              child: products.isEmpty
+                  ? PullToRefresh.fillViewport(
+                      Center(
+                        child: Text(
+                          AppStrings.comingSoon,
+                          style: TextStyle(color: AppColors.onSurface),
+                        ),
+                      ),
+                    )
+                  : ProductGrid(products: products, onProductTap: onProductTap),
+            ),
           ),
         ],
       ),

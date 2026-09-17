@@ -41,6 +41,19 @@ class ReceiptPrinter {
 
   static const String _savedPrinterKey = 'receipt_printer_mac';
   static const String _savedPrinterNameKey = 'receipt_printer_name';
+  static const String _footerKey = 'receipt_footer';
+
+  /// Written in the footer text, replaced by the store's phone number.
+  static const String phonePlaceholder = '{no_hp}';
+
+  static const String defaultFooter =
+      'Kritik dan saran bisa\n'
+      'menghubungi admin\n'
+      '$phonePlaceholder\n'
+      'Instagram : nails_byara_malang';
+
+  /// Characters per line on 58mm paper with the default font.
+  static const int _lineWidth = 32;
 
   /// Logo width in printer dots: fits a 58mm head (384 dots) with margin.
   static const int _logoWidth = 320;
@@ -107,6 +120,17 @@ class ReceiptPrinter {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(_savedPrinterKey);
     await prefs.remove(_savedPrinterNameKey);
+  }
+
+  /// Footer text for this device's receipts, one printed line per line.
+  Future<String> footer() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_footerKey) ?? defaultFooter;
+  }
+
+  Future<void> saveFooter(String text) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_footerKey, text);
   }
 
   /// Prints [order]. Throws [PrinterException] with a message meant for the
@@ -212,10 +236,43 @@ class ReceiptPrinter {
       'Sampai jumpa kembali',
       styles: const PosStyles(align: PosAlign.center),
     );
+    bytes += generator.feed(1);
+    for (final String line in footerLines(await footer(), store.phone)) {
+      bytes += generator.text(
+        line,
+        styles: const PosStyles(align: PosAlign.center),
+      );
+    }
     bytes += generator.feed(2);
     bytes += generator.cut();
 
     return bytes;
+  }
+
+  /// Footer text as printed lines: the phone placeholder filled in (its line
+  /// dropped when the store has no phone) and long lines wrapped at word
+  /// boundaries, since the printer's own wrap breaks mid-word.
+  static List<String> footerLines(String text, String phone) {
+    final List<String> lines = <String>[];
+    for (final String raw in text.split('\n')) {
+      if (raw.contains(phonePlaceholder) && phone.isEmpty) {
+        continue;
+      }
+      String current = '';
+      for (final String word
+          in raw.replaceAll(phonePlaceholder, phone).trim().split(' ')) {
+        if (current.isEmpty) {
+          current = word;
+        } else if (current.length + 1 + word.length <= _lineWidth) {
+          current = '$current $word';
+        } else {
+          lines.add(current);
+          current = word;
+        }
+      }
+      lines.add(current);
+    }
+    return lines;
   }
 
   Future<img.Image> _logo() async {

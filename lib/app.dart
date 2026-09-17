@@ -5,6 +5,7 @@ import 'core/data/store_repository.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/phone_scale.dart';
 import 'features/admin/presentation/pages/admin_catalog_page.dart';
 import 'features/admin/presentation/pages/admin_dashboard_page.dart';
 import 'features/admin/presentation/pages/admin_employees_page.dart';
@@ -36,6 +37,8 @@ class _KasirAppState extends State<KasirApp> {
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
           theme: isDark ? AppTheme.dark : AppTheme.light,
+          builder: (BuildContext context, Widget? child) =>
+              PhoneScale(child: child!),
           initialRoute: AppRoutes.splash,
           routes: <String, WidgetBuilder>{
             AppRoutes.splash: (_) => const SplashPage(),

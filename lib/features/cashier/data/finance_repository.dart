@@ -29,4 +29,8 @@ class FinanceRepository {
     });
     return FinanceEntry.fromJson(data as Map<String, dynamic>);
   }
+
+  Future<void> remove(String id) async {
+    await api.delete('/api/finance/$id');
+  }
 }

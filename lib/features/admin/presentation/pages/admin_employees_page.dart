@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
@@ -214,90 +215,96 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
   Widget _buildEmployeeList() {
     final List<Employee> employees = _visibleEmployees;
 
-    return employees.isEmpty
-        ? Center(
-            child: Text(
-              _searchQuery.trim().isEmpty
-                  ? AppStrings.employeesEmpty
-                  : 'Tidak ada pegawai yang cocok',
-              style: TextStyle(color: AppColors.onSurfaceMuted),
-            ),
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-            itemCount: employees.length,
-            itemBuilder: (BuildContext context, int index) {
-              final Employee employee = employees[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: ClayDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
+    return PullToRefresh(
+      onRefresh: _load,
+      child: employees.isEmpty
+          ? PullToRefresh.fillViewport(
+              Center(
+                child: Text(
+                  _searchQuery.trim().isEmpty
+                      ? AppStrings.employeesEmpty
+                      : 'Tidak ada pegawai yang cocok',
+                  style: TextStyle(color: AppColors.onSurfaceMuted),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
+              ),
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+              itemCount: employees.length,
+              itemBuilder: (BuildContext context, int index) {
+                final Employee employee = employees[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: ClayDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.badge_outlined,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.badge_outlined,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              employee.name,
-                              style: TextStyle(
-                                fontSize: 16.2,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurface,
-                              ),
-                            ),
-                            if (employee.phone != null &&
-                                employee.phone!.isNotEmpty) ...<Widget>[
-                              const SizedBox(height: 2),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
                               Text(
-                                'Telp: ${employee.phone}',
+                                employee.name,
                                 style: TextStyle(
-                                  fontSize: 14.4,
-                                  color: AppColors.onSurfaceMuted,
+                                  fontSize: 16.2,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurface,
                                 ),
                               ),
+                              if (employee.phone != null &&
+                                  employee.phone!.isNotEmpty) ...<Widget>[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Telp: ${employee.phone}',
+                                  style: TextStyle(
+                                    fontSize: 14.4,
+                                    color: AppColors.onSurfaceMuted,
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _openEditor(employee: employee),
-                        icon: Icon(
-                          Icons.edit_outlined,
-                          color: AppColors.primary,
+                        IconButton(
+                          onPressed: () => _openEditor(employee: employee),
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _deleteEmployee(employee),
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
+                        IconButton(
+                          onPressed: () => _deleteEmployee(employee),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
+                );
+              },
+            ),
+    );
   }
 }
 

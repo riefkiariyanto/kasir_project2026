@@ -16,6 +16,7 @@ class ProductGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 96),
       itemCount: products.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

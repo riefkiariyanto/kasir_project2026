@@ -3,18 +3,23 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/widgets/app_dialog.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../cashier/data/cart_item.dart';
+import '../../../cashier/data/category_repository.dart';
 import '../../../cashier/data/employee.dart';
 import '../../../cashier/data/employee_repository.dart';
 import '../../../cashier/data/finance_entry.dart';
 import '../../../cashier/data/finance_repository.dart';
 import '../../../cashier/data/order.dart';
 import '../../../cashier/data/order_repository.dart';
+import '../../../cashier/data/product_repository.dart';
 
 /// Called when a summary card's detail link is tapped, to open the
 /// transaction history pre-filtered to what that card counted.
@@ -29,12 +34,16 @@ class AdminReportsView extends StatefulWidget {
     this.orderRepository = const OrderRepository(),
     this.financeRepository = const FinanceRepository(),
     this.employeeRepository = const EmployeeRepository(),
+    this.productRepository = const ProductRepository(),
+    this.categoryRepository = const CategoryRepository(),
   });
 
   final OpenFilteredOrders onOpenOrders;
   final OrderRepository orderRepository;
   final FinanceRepository financeRepository;
   final EmployeeRepository employeeRepository;
+  final ProductRepository productRepository;
+  final CategoryRepository categoryRepository;
 
   @override
   State<AdminReportsView> createState() => _AdminReportsViewState();
@@ -67,6 +76,10 @@ class _AdminReportsViewState extends State<AdminReportsView> {
   List<FinanceEntry>? _financeEntries;
   List<Employee>? _employees;
 
+  /// Orders from the API carry no category, so each item's category is
+  /// looked up from the current catalog by product id.
+  Map<String, String> _categoryByProductId = const <String, String>{};
+
   @override
   void initState() {
     super.initState();
@@ -78,16 +91,24 @@ class _AdminReportsViewState extends State<AdminReportsView> {
       List<Order> orders,
       List<FinanceEntry> finance,
       List<Employee> employees,
+      List<Product> products,
     ) = await (
       widget.orderRepository.fetchAll(),
       widget.financeRepository.fetchAll(),
       widget.employeeRepository.fetchAll(),
+      widget.categoryRepository.fetchAll().then(
+        widget.productRepository.fetchAll,
+      ),
     ).wait;
     if (mounted) {
       setState(() {
         _orders = orders;
         _financeEntries = finance;
         _employees = employees;
+        _categoryByProductId = <String, String>{
+          for (final Product product in products)
+            if (product.category.isNotEmpty) product.id: product.category,
+        };
       });
     }
   }
@@ -185,12 +206,17 @@ class _AdminReportsViewState extends State<AdminReportsView> {
         .where((Order order) => order.method == method)
         .fold(0, (int sum, Order order) => sum + order.total);
     if (method == PaymentMethod.cash) {
-      base -= _totalTransfer;
+      base -= _totalTransfer + _totalLoan;
     } else if (method == PaymentMethod.qris) {
       base += _totalTransfer;
     }
     return base;
   }
+
+  /// Rupiah with an explicit sign; a negative balance keeps its own '-'.
+  String _signedRupiah(int amount) => amount < 0
+      ? CurrencyFormatter.rupiah(amount)
+      : '+${CurrencyFormatter.rupiah(amount)}';
 
   List<({String name, int quantity, int revenue})> get _productSales {
     final Map<String, ({int quantity, int revenue})> totals =
@@ -228,8 +254,9 @@ class _AdminReportsViewState extends State<AdminReportsView> {
     final Map<String, int> totals = <String, int>{};
     for (final Order order in _filteredOrders) {
       for (final CartItem item in order.items) {
-        totals[item.product.category] =
-            (totals[item.product.category] ?? 0) + item.quantity;
+        final String category =
+            _categoryByProductId[item.product.id] ?? 'Tanpa Kategori';
+        totals[category] = (totals[category] ?? 0) + item.quantity;
       }
     }
     final List<({String name, int value})> entries =
@@ -278,6 +305,51 @@ class _AdminReportsViewState extends State<AdminReportsView> {
       ...top,
       (name: 'Lainnya', value: othersTotal),
     ];
+  }
+
+  Future<void> _deleteFinanceEntry(FinanceEntry entry) async {
+    final String kind = entry.type == FinanceType.loan
+        ? AppStrings.financeLoanOf
+        : AppStrings.financeTransferOf;
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Hapus Riwayat?'),
+        content: Text(
+          '$kind ${entry.employeeName} · '
+          '${CurrencyFormatter.rupiah(entry.amount)}\n'
+          '${AppDateUtils.formatDateTime(entry.createdAt)}',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(AppStrings.employeeDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await widget.financeRepository.remove(entry.id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        showAppDialog(
+          context,
+          title: 'Gagal Menghapus Riwayat',
+          message: error.message,
+        );
+      }
+      return;
+    }
+    await _load();
   }
 
   Future<void> _pickAnchorDate(BuildContext context) async {
@@ -331,137 +403,154 @@ class _AdminReportsViewState extends State<AdminReportsView> {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1080),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-                children: <Widget>[
-                  Text(
-                    'Ringkasan Penjualan',
-                    style: TextStyle(
-                      fontSize: 19.2,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
+              child: PullToRefresh(
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+                  children: <Widget>[
+                    Text(
+                      'Ringkasan Penjualan',
+                      style: TextStyle(
+                        fontSize: 19.2,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildFilterBar(context),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _ReportCard(
-                          title: 'Transaksi',
-                          value: '$_totalTransactions',
-                          icon: Icons.receipt_long_outlined,
-                          onDetailTap: () => widget.onOpenOrders(
-                            employee: _employeeFilter,
-                            date: _selectedDate,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ReportCard(
-                          title: 'Produk Terjual',
-                          value: '$_totalItemsSold',
-                          icon: Icons.inventory_2_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _ReportCard(
-                          title: 'Tunai',
-                          value:
-                              '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.cash))}',
-                          icon: Icons.money_outlined,
-                          isPositive: true,
-                          onDetailTap: () => widget.onOpenOrders(
-                            employee: _employeeFilter,
-                            date: _selectedDate,
-                            method: PaymentMethod.cash,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ReportCard(
-                          title: 'QRIS',
-                          value:
-                              '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.qris))}',
-                          icon: Icons.qr_code_2_outlined,
-                          isPositive: true,
-                          onDetailTap: () => widget.onOpenOrders(
-                            employee: _employeeFilter,
-                            date: _selectedDate,
-                            method: PaymentMethod.qris,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _ReportCard(
-                          title: revenueLabel,
-                          value: '+${CurrencyFormatter.rupiah(_netRevenue)}',
-                          icon: Icons.payments_outlined,
-                          isPositive: true,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ReportCard(
-                          title: 'Pengeluaran $_periodLabel',
-                          value: _totalLoan > 0
-                              ? '-${CurrencyFormatter.rupiah(_totalLoan)}'
-                              : CurrencyFormatter.rupiah(0),
-                          icon: Icons.money_off_outlined,
-                          isPositive: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFinanceHistorySection(),
-                  if (hasData) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _buildFilterBar(context),
+                    const SizedBox(height: 16),
+                    _buildSummaryCards(revenueLabel),
                     const SizedBox(height: 24),
-                    LayoutBuilder(
-                      builder:
-                          (BuildContext context, BoxConstraints constraints) {
-                            final Widget productList =
-                                _buildProductSalesSection(productSales);
-                            final Widget donut = _buildDonutSection();
+                    _buildFinanceHistorySection(),
+                    if (hasData) ...<Widget>[
+                      const SizedBox(height: 24),
+                      LayoutBuilder(
+                        builder:
+                            (BuildContext context, BoxConstraints constraints) {
+                              final Widget productList =
+                                  _buildProductSalesSection(productSales);
+                              final Widget donut = _buildDonutSection();
 
-                            if (constraints.maxWidth >= 700) {
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              if (constraints.maxWidth >= 700) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Expanded(flex: 3, child: productList),
+                                    const SizedBox(width: 16),
+                                    Expanded(flex: 2, child: donut),
+                                  ],
+                                );
+                              }
+
+                              return Column(
                                 children: <Widget>[
-                                  Expanded(flex: 3, child: productList),
-                                  const SizedBox(width: 16),
-                                  Expanded(flex: 2, child: donut),
+                                  donut,
+                                  const SizedBox(height: 24),
+                                  productList,
                                 ],
                               );
-                            }
-
-                            return Column(
-                              children: <Widget>[
-                                donut,
-                                const SizedBox(height: 24),
-                                productList,
-                              ],
-                            );
-                          },
-                    ),
+                            },
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );
+  }
+
+  /// Two cards per row on tablets; one full-width row per card on phones,
+  /// where half-width cards squeeze rupiah amounts until they truncate.
+  Widget _buildSummaryCards(String revenueLabel) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool singleColumn = constraints.maxWidth < 600;
+        final List<Widget> cards = <Widget>[
+          _ReportCard(
+            title: 'Transaksi',
+            value: '$_totalTransactions',
+            icon: Icons.receipt_long_outlined,
+            horizontal: singleColumn,
+            onDetailTap: () => widget.onOpenOrders(
+              employee: _employeeFilter,
+              date: _selectedDate,
+            ),
+          ),
+          _ReportCard(
+            title: 'Produk Terjual',
+            value: '$_totalItemsSold',
+            icon: Icons.inventory_2_outlined,
+            horizontal: singleColumn,
+          ),
+          _ReportCard(
+            title: 'Tunai',
+            value: _signedRupiah(_revenueByMethod(PaymentMethod.cash)),
+            icon: Icons.money_outlined,
+            isPositive: _revenueByMethod(PaymentMethod.cash) >= 0,
+            horizontal: singleColumn,
+            onDetailTap: () => widget.onOpenOrders(
+              employee: _employeeFilter,
+              date: _selectedDate,
+              method: PaymentMethod.cash,
+            ),
+          ),
+          _ReportCard(
+            title: 'QRIS',
+            value: _signedRupiah(_revenueByMethod(PaymentMethod.qris)),
+            icon: Icons.qr_code_2_outlined,
+            isPositive: true,
+            horizontal: singleColumn,
+            onDetailTap: () => widget.onOpenOrders(
+              employee: _employeeFilter,
+              date: _selectedDate,
+              method: PaymentMethod.qris,
+            ),
+          ),
+          _ReportCard(
+            title: revenueLabel,
+            value: _signedRupiah(_netRevenue),
+            icon: Icons.payments_outlined,
+            isPositive: _netRevenue >= 0,
+            horizontal: singleColumn,
+          ),
+          _ReportCard(
+            title: 'Pengeluaran $_periodLabel',
+            value: _totalLoan > 0
+                ? '-${CurrencyFormatter.rupiah(_totalLoan)}'
+                : CurrencyFormatter.rupiah(0),
+            icon: Icons.money_off_outlined,
+            isPositive: false,
+            horizontal: singleColumn,
+          ),
+        ];
+
+        if (singleColumn) {
+          return Column(
+            children: <Widget>[
+              for (int i = 0; i < cards.length; i++) ...<Widget>[
+                if (i > 0) const SizedBox(height: 10),
+                cards[i],
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: <Widget>[
+            for (int i = 0; i < cards.length; i += 2) ...<Widget>[
+              if (i > 0) const SizedBox(height: 12),
+              Row(
+                children: <Widget>[
+                  Expanded(child: cards[i]),
+                  const SizedBox(width: 12),
+                  Expanded(child: cards[i + 1]),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildFinanceHistorySection() {
@@ -559,6 +648,12 @@ class _AdminReportsViewState extends State<AdminReportsView> {
                           ? Colors.red
                           : AppColors.primary,
                     ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => _deleteFinanceEntry(entry),
+                    tooltip: 'Hapus Riwayat',
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
                   ),
                 ],
               ),
@@ -806,6 +901,7 @@ class _ReportCard extends StatelessWidget {
     required this.value,
     required this.icon,
     this.isPositive,
+    this.horizontal = false,
     this.onDetailTap,
   });
 
@@ -813,84 +909,111 @@ class _ReportCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final bool? isPositive;
+
+  /// Icon, text and detail button in one row, for full-width phone cards.
+  final bool horizontal;
   final VoidCallback? onDetailTap;
 
   @override
   Widget build(BuildContext context) {
+    final Widget iconBadge = Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 18, color: AppColors.primary),
+    );
+    final Widget titleText = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 14.4, color: AppColors.onSurfaceMuted),
+    );
+    final Widget valueText = Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: horizontal ? 19 : 21.6,
+        fontWeight: FontWeight.bold,
+        color: isPositive == null
+            ? AppColors.onSurface
+            : (isPositive! ? Colors.green : Colors.red),
+      ),
+    );
+    final Widget? detailButton = onDetailTap == null
+        ? null
+        : TextButton(
+            onPressed: onDetailTap,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                ),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              minimumSize: Size.zero,
+              // Keeps the pill small but the touch area finger-sized.
+              tapTargetSize: MaterialTapTargetSize.padded,
+            ),
+            child: const Text('Detail'),
+          );
+
     return Container(
       decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+        padding: horizontal
+            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 12)
+            : const EdgeInsets.all(16),
+        child: horizontal
+            ? Row(
+                children: <Widget>[
+                  iconBadge,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        titleText,
+                        const SizedBox(height: 2),
+                        valueText,
+                      ],
+                    ),
+                  ),
+                  if (detailButton != null) ...<Widget>[
+                    const SizedBox(width: 8),
+                    detailButton,
+                  ],
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  iconBadge,
+                  const SizedBox(height: 12),
+                  titleText,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: <Widget>[
+                      Expanded(child: valueText),
+                      ?detailButton,
+                    ],
+                  ),
+                ],
               ),
-              child: Icon(icon, size: 18, color: AppColors.primary),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 14.4, color: AppColors.onSurfaceMuted),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 21.6,
-                      fontWeight: FontWeight.bold,
-                      color: isPositive == null
-                          ? AppColors.onSurface
-                          : (isPositive! ? Colors.green : Colors.red),
-                    ),
-                  ),
-                ),
-                if (onDetailTap != null)
-                  TextButton(
-                    onPressed: onDetailTap,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      foregroundColor: AppColors.primary,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: AppColors.primary.withValues(alpha: 0.35),
-                        ),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text('Detail'),
-                  ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

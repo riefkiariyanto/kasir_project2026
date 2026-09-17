@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/image_compressor.dart';
@@ -318,7 +319,12 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         children: <Widget>[
           _buildCategoryFilterAndToggle(context),
           const SizedBox(height: 14),
-          Expanded(child: _gridView ? _buildGridView() : _buildListView()),
+          Expanded(
+            child: PullToRefresh(
+              onRefresh: _load,
+              child: _gridView ? _buildGridView() : _buildListView(),
+            ),
+          ),
         ],
       ),
     );
@@ -370,15 +376,18 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
     final List<Product> products = _visibleProducts;
 
     if (products.isEmpty) {
-      return Center(
-        child: Text(
-          'Tidak ada produk',
-          style: TextStyle(color: AppColors.onSurfaceMuted),
+      return PullToRefresh.fillViewport(
+        Center(
+          child: Text(
+            'Tidak ada produk',
+            style: TextStyle(color: AppColors.onSurfaceMuted),
+          ),
         ),
       );
     }
 
     return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 96),
       itemCount: products.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -494,7 +503,10 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                     children: <Widget>[
                       IconButton(
                         iconSize: 20,
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
                         padding: const EdgeInsets.all(8),
                         onPressed: () => _openEditor(product: product),
                         icon: Icon(
@@ -504,7 +516,10 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                       ),
                       IconButton(
                         iconSize: 20,
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
                         padding: const EdgeInsets.all(8),
                         onPressed: () => _deleteProduct(product),
                         icon: const Icon(
@@ -527,15 +542,18 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
     final List<Product> products = _visibleProducts;
 
     if (products.isEmpty) {
-      return Center(
-        child: Text(
-          'Tidak ada produk',
-          style: TextStyle(color: AppColors.onSurfaceMuted),
+      return PullToRefresh.fillViewport(
+        Center(
+          child: Text(
+            'Tidak ada produk',
+            style: TextStyle(color: AppColors.onSurfaceMuted),
+          ),
         ),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 96),
       itemCount: products.length,
       itemBuilder: (BuildContext context, int index) {

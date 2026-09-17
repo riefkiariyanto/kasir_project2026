@@ -4,7 +4,9 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/api_client.dart';
 import '../../../../core/data/store_repository.dart';
 import '../../../../core/printing/printer_settings_tile.dart';
+import '../../../../core/printing/receipt_footer_tile.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
@@ -42,6 +44,10 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     if (mounted) {
       setState(() => _categories = categories);
     }
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait(<Future<void>>[_load(), StoreRepository().fetch()]);
   }
 
   Future<void> _openChangePassword() async {
@@ -251,21 +257,27 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1080),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _buildStoreSection(),
-                const SizedBox(height: 28),
-                _buildCategoryChips(),
-                const SizedBox(height: 28),
-                const PrinterSettingsTile(),
-                const SizedBox(height: 28),
-                _buildTransactionSection(),
-                const SizedBox(height: 28),
-                _buildAccountSection(),
-              ],
+          child: PullToRefresh(
+            onRefresh: _refresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildStoreSection(),
+                  const SizedBox(height: 28),
+                  _buildCategoryChips(),
+                  const SizedBox(height: 28),
+                  const PrinterSettingsTile(),
+                  const SizedBox(height: 28),
+                  const ReceiptFooterTile(),
+                  const SizedBox(height: 28),
+                  _buildTransactionSection(),
+                  const SizedBox(height: 28),
+                  _buildAccountSection(),
+                ],
+              ),
             ),
           ),
         ),

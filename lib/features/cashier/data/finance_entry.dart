@@ -11,7 +11,10 @@ class FinanceEntry {
   });
 
   final String id;
-  final String employeeId;
+
+  /// Null once the employee is deleted: the entry is kept, and
+  /// [employeeName] still records who it was.
+  final String? employeeId;
   final String employeeName;
   final FinanceType type;
   final int amount;
@@ -20,7 +23,7 @@ class FinanceEntry {
   factory FinanceEntry.fromJson(Map<String, dynamic> json) {
     return FinanceEntry(
       id: json['id'] as String,
-      employeeId: json['employee_id'] as String,
+      employeeId: json['employee_id'] as String?,
       employeeName: json['employee_name'] as String,
       type: (json['type'] as String) == 'loan'
           ? FinanceType.loan

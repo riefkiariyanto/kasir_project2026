@@ -3,6 +3,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/widgets/brand_title.dart';
@@ -239,6 +240,7 @@ class _CashierPageState extends State<CashierPage> {
           onTransaksiTap: () => _openTransaction(),
           onOrdersTap: _openOrders,
           onFinanceTap: _openFinance,
+          onRefresh: _loadCategories,
         );
       case 2:
         return _buildOrdersTab(context);
@@ -267,8 +269,14 @@ class _CashierPageState extends State<CashierPage> {
                   const SizedBox(height: 10),
                   Expanded(
                     child: _ordersGridView
-                        ? OrdersList.grid(orders: _filteredOrders)
-                        : OrdersList(orders: _filteredOrders),
+                        ? OrdersList.grid(
+                            orders: _filteredOrders,
+                            onRefresh: _loadOrders,
+                          )
+                        : OrdersList(
+                            orders: _filteredOrders,
+                            onRefresh: _loadOrders,
+                          ),
                   ),
                 ],
               ),
@@ -589,6 +597,7 @@ class _CashierHomeTab extends StatelessWidget {
     required this.onTransaksiTap,
     required this.onOrdersTap,
     required this.onFinanceTap,
+    required this.onRefresh,
   });
 
   static const double _maxContentWidth = 1080;
@@ -599,6 +608,7 @@ class _CashierHomeTab extends StatelessWidget {
   final VoidCallback onTransaksiTap;
   final VoidCallback onOrdersTap;
   final VoidCallback onFinanceTap;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -606,37 +616,44 @@ class _CashierHomeTab extends StatelessWidget {
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-          children: <Widget>[
-            PromoBanner(onTap: onBannerTap),
-            const SizedBox(height: 20),
-            Text(
-              AppStrings.cashierMenu,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
+        child: PullToRefresh(
+          onRefresh: onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+            children: <Widget>[
+              PromoBanner(onTap: onBannerTap),
+              const SizedBox(height: 20),
+              Text(
+                AppStrings.cashierMenu,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _CashierQuickMenuGrid(
-              onTransaksiTap: onTransaksiTap,
-              onOrdersTap: onOrdersTap,
-              onFinanceTap: onFinanceTap,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppStrings.cashierCategories,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
+              const SizedBox(height: 12),
+              _CashierQuickMenuGrid(
+                onTransaksiTap: onTransaksiTap,
+                onOrdersTap: onOrdersTap,
+                onFinanceTap: onFinanceTap,
               ),
-            ),
-            const SizedBox(height: 12),
-            CategoryGrid(categories: categories, onCategoryTap: onCategoryTap),
-          ],
+              const SizedBox(height: 24),
+              Text(
+                AppStrings.cashierCategories,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              CategoryGrid(
+                categories: categories,
+                onCategoryTap: onCategoryTap,
+              ),
+            ],
+          ),
         ),
       ),
     );

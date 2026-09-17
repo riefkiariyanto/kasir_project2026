@@ -90,21 +90,30 @@ class ProductTile extends StatelessWidget {
                         ),
                       ),
                     Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Material(
-                        color: AppColors.primary,
-                        shape: const CircleBorder(),
-                        elevation: 2,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: onTap,
-                          child: Padding(
-                            padding: EdgeInsets.all(6),
-                            child: Icon(
-                              Icons.shopping_cart_outlined,
-                              color: AppColors.onPrimary,
-                              size: 18,
+                      right: 0,
+                      bottom: 0,
+                      // The transparent margin widens the touch area around
+                      // the small circle without making it look bigger.
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onTap,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Material(
+                            color: AppColors.primary,
+                            shape: const CircleBorder(),
+                            elevation: 2,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: onTap,
+                              child: Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.shopping_cart_outlined,
+                                  color: AppColors.onPrimary,
+                                  size: 18,
+                                ),
+                              ),
                             ),
                           ),
                         ),

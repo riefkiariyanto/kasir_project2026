@@ -6,8 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/order.dart';
 
-/// Shown after a successful checkout. Offers to print the receipt to the
-/// paired Bluetooth thermal printer; the cashier can also just close it.
+/// Shown after a successful checkout. Prints the receipt to the paired
+/// Bluetooth thermal printer right away, with a button to reprint.
 class PaymentSuccessDialog extends StatelessWidget {
   const PaymentSuccessDialog({super.key, required this.order});
 
@@ -43,7 +43,7 @@ class PaymentSuccessDialog extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: AppColors.onSurfaceMuted),
           ),
           const SizedBox(height: 16),
-          PrintReceiptButton(order: order),
+          PrintReceiptButton(order: order, autoPrint: true),
         ],
       ),
       actions: <Widget>[

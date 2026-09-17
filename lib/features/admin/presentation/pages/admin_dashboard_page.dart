@@ -273,10 +273,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     child: _ordersGridView
                         ? OrdersList.grid(
                             orders: _filteredOrders,
+                            onRefresh: _load,
                             onDelete: _deleteOrder,
                           )
                         : OrdersList(
                             orders: _filteredOrders,
+                            onRefresh: _load,
                             onDelete: _deleteOrder,
                           ),
                   ),

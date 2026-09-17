@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const requireAdmin = require('../middleware/requireAdmin');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -19,6 +20,11 @@ router.post('/', asyncHandler(async (req, res) => {
     [employeeId || null, employeeName, type, amount]
   );
   res.status(201).json(rows[0]);
+}));
+
+router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
+  await pool.query('delete from finance_entries where id = $1', [req.params.id]);
+  res.status(204).end();
 }));
 
 module.exports = router;

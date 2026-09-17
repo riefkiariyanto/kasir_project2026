@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pull_to_refresh.dart';
 import '../../data/order.dart';
 import 'order_card.dart';
 import 'order_detail_dialog.dart';
@@ -13,6 +14,7 @@ class OrdersList extends StatelessWidget {
     this.maxContentWidth = 1080,
     this.isGrid = false,
     this.onDelete,
+    this.onRefresh,
   });
 
   const OrdersList.grid({
@@ -21,6 +23,7 @@ class OrdersList extends StatelessWidget {
     this.maxContentWidth = 1080,
     this.isGrid = true,
     this.onDelete,
+    this.onRefresh,
   });
 
   final List<Order> orders;
@@ -28,49 +31,73 @@ class OrdersList extends StatelessWidget {
   final bool isGrid;
   final ValueChanged<Order>? onDelete;
 
+  /// Enables swipe-down refresh when set.
+  final Future<void> Function()? onRefresh;
+
+  Widget _withRefresh(Widget list) {
+    final Future<void> Function()? refresh = onRefresh;
+    if (refresh == null) {
+      return list;
+    }
+    return PullToRefresh(
+      onRefresh: refresh,
+      child: orders.isEmpty ? PullToRefresh.fillViewport(list) : list,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxContentWidth),
-        child: orders.isEmpty
-            ? const _OrdersEmptyState()
-            : isGrid
-            ? GridView.builder(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-                itemCount: orders.length,
-                // Fixed cell height: an aspect ratio shrinks the height
-                // along with narrow columns and clips the card's content.
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 380,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: 140,
+        child: _withRefresh(
+          orders.isEmpty
+              ? const _OrdersEmptyState()
+              : isGrid
+              ? GridView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                  itemCount: orders.length,
+                  // Fixed cell height: an aspect ratio shrinks the height
+                  // along with narrow columns and clips the card's content.
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 380,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    mainAxisExtent: 140,
+                  ),
+                  itemBuilder: (BuildContext context, int index) {
+                    final Order order = orders[index];
+                    return OrderCard(
+                      order: order,
+                      onTap: () =>
+                          OrderDetailDialog.show(context, order: order),
+                      onDelete: onDelete != null
+                          ? () => onDelete!(order)
+                          : null,
+                    );
+                  },
+                )
+              : ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                  itemCount: orders.length,
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (BuildContext context, int index) {
+                    final Order order = orders[index];
+                    return OrderCard(
+                      order: order,
+                      onTap: () =>
+                          OrderDetailDialog.show(context, order: order),
+                      onDelete: onDelete != null
+                          ? () => onDelete!(order)
+                          : null,
+                    );
+                  },
                 ),
-                itemBuilder: (BuildContext context, int index) {
-                  final Order order = orders[index];
-                  return OrderCard(
-                    order: order,
-                    onTap: () => OrderDetailDialog.show(context, order: order),
-                    onDelete: onDelete != null ? () => onDelete!(order) : null,
-                  );
-                },
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-                itemCount: orders.length,
-                separatorBuilder: (BuildContext context, int index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (BuildContext context, int index) {
-                  final Order order = orders[index];
-                  return OrderCard(
-                    order: order,
-                    onTap: () => OrderDetailDialog.show(context, order: order),
-                    onDelete: onDelete != null ? () => onDelete!(order) : null,
-                  );
-                },
-              ),
+        ),
       ),
     );
   }

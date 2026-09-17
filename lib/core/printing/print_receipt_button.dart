@@ -10,10 +10,14 @@ class PrintReceiptButton extends StatefulWidget {
   const PrintReceiptButton({
     super.key,
     required this.order,
+    this.autoPrint = false,
     this.printer = const ReceiptPrinter(),
   });
 
   final Order order;
+
+  /// Prints once as soon as the button appears; the button stays for reprints.
+  final bool autoPrint;
   final ReceiptPrinter printer;
 
   @override
@@ -24,6 +28,19 @@ class _PrintReceiptButtonState extends State<PrintReceiptButton> {
   bool _isPrinting = false;
   String? _message;
   bool _messageIsError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoPrint) {
+      // setState isn't allowed until the first build has run.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _print();
+        }
+      });
+    }
+  }
 
   Future<void> _print() async {
     setState(() {
@@ -71,7 +88,7 @@ class _PrintReceiptButtonState extends State<PrintReceiptButton> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.print_outlined, size: 18),
-          label: const Text('Cetak Struk'),
+          label: Text(_message == null ? 'Cetak Struk' : 'Cetak Ulang'),
         ),
         if (message != null) ...<Widget>[
           const SizedBox(height: 8),
