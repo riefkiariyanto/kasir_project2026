@@ -33,7 +33,7 @@ backend/
    - `CORS_ORIGIN` → origin app Flutter (atau `*` untuk dev)
    - `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` → kredensial admin awal
 4. Tambahkan **Volume** di service Express, mount path `/data/uploads`, lalu set `UPLOAD_DIR=/data/uploads` — supaya foto produk tidak hilang tiap redeploy (disk container Railway ephemeral tanpa Volume).
-5. Deploy. `railway.json` sudah set start command `npm run migrate && npm start` — schema otomatis di-apply tiap deploy (idempotent, aman dijalankan berkali-kali karena semua `create table if not exists`).
+5. Deploy. Saat start, server langsung listen (healthcheck `/health` lolos) lalu menjalankan `schema.sql` di background dan mencoba ulang kalau database belum siap — idempotent karena semua `create table if not exists`. Node 20+ (lihat `engines`).
 
 ## 2. Seed data dummy (sekali saja, manual)
 

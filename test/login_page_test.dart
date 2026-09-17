@@ -3,29 +3,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kasir_2026/app.dart';
 import 'package:kasir_2026/core/constants/app_strings.dart';
 import 'package:kasir_2026/core/theme/app_colors.dart';
+import 'package:kasir_2026/features/auth/presentation/widgets/login_header.dart';
 import 'package:kasir_2026/core/widgets/brand_title.dart';
 import 'package:kasir_2026/features/admin/presentation/pages/admin_dashboard_page.dart';
+import 'package:kasir_2026/features/admin/presentation/widgets/admin_reports_view.dart';
 import 'package:kasir_2026/features/auth/presentation/pages/login_page.dart';
 import 'package:kasir_2026/features/cashier/presentation/pages/cashier_page.dart';
 
-Future<void> _loginAsPegawai(WidgetTester tester) async {
+/// Pumps the app and fast-forwards past the splash screen's fixed delay so
+/// tests land on the login page, same as before splash was introduced.
+Future<void> _pumpPastSplash(WidgetTester tester) async {
   await tester.pumpWidget(const KasirApp());
+  await tester.pump(const Duration(milliseconds: 1300));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _loginAsPegawai(WidgetTester tester) async {
+  await _pumpPastSplash(tester);
   await tester.tap(find.text(AppStrings.employeeButton));
   await tester.pumpAndSettle();
 }
 
 void main() {
   testWidgets('menampilkan form login dan akses pegawai', (tester) async {
-    await tester.pumpWidget(const KasirApp());
+    await _pumpPastSplash(tester);
 
-    expect(find.text(AppStrings.loginSubtitle), findsOneWidget);
+    expect(find.byType(LoginHeader), findsOneWidget);
     expect(find.text(AppStrings.usernameLabel), findsOneWidget);
     expect(find.text(AppStrings.passwordLabel), findsOneWidget);
     expect(find.text(AppStrings.employeeButton), findsOneWidget);
   });
 
   testWidgets('kredensial benar membuka dashboard admin', (tester) async {
-    await tester.pumpWidget(const KasirApp());
+    await _pumpPastSplash(tester);
 
     await tester.enterText(find.byType(TextField).at(0), 'admin');
     await tester.enterText(find.byType(TextField).at(1), 'admin');
@@ -34,11 +44,11 @@ void main() {
 
     expect(find.byType(AdminDashboardPage), findsOneWidget);
     expect(find.byType(CashierPage), findsNothing);
-    expect(find.text(AppStrings.adminDashboardReport), findsOneWidget);
+    expect(find.byType(AdminReportsView), findsOneWidget);
   });
 
   testWidgets('kredensial salah menampilkan pesan error', (tester) async {
-    await tester.pumpWidget(const KasirApp());
+    await _pumpPastSplash(tester);
 
     await tester.enterText(find.byType(TextField).at(0), 'admin');
     await tester.enterText(find.byType(TextField).at(1), 'salah');

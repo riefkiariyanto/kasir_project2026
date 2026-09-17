@@ -5,6 +5,7 @@ const cors = require('cors');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const pool = require('./db');
+const migrate = require('../db/migrate');
 
 const app = express();
 
@@ -38,5 +39,28 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Listen dulu supaya healthcheck Railway lolos walau database belum siap, lalu
+// migrasi dicoba ulang alih-alih exit (exit = crash-loop sampai batas restart).
+async function migrateWithRetry(attempt = 1) {
+  try {
+    await migrate(pool);
+  } catch (err) {
+    const delayMs = Math.min(30_000, 2_000 * attempt);
+    console.error(`migrasi gagal (percobaan ${attempt}), ulang dalam ${delayMs / 1000}s:`, err.message);
+    setTimeout(() => migrateWithRetry(attempt + 1), delayMs);
+  }
+}
+
+// Error di luar rute (callback library) dicatat saja, jangan matikan server.
+process.on('unhandledRejection', (err) => console.error('unhandledRejection', err));
+
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`kasir-2026 backend listening on ${port}`));
+const server = app.listen(port, () => {
+  console.log(`kasir-2026 backend listening on ${port}`);
+  migrateWithRetry();
+});
+
+// Railway mengirim SIGTERM saat redeploy: selesaikan request yang berjalan dulu.
+process.on('SIGTERM', () => {
+  server.close(() => pool.end().finally(() => process.exit(0)));
+});

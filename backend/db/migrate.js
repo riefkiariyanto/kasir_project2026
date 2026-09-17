@@ -1,12 +1,10 @@
 // Jalankan schema.sql, lalu (opsional, sekali saja) seed.sql + admin/employee bcrypt seed.
-// Usage: node db/migrate.js [--seed]
+// Usage: node db/migrate.js [--seed] — server.js juga memanggil migrate() saat start.
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function seedAuthData(client) {
   const employees = [
@@ -30,26 +28,32 @@ async function seedAuthData(client) {
   );
 }
 
-async function main() {
+async function migrate(pool, { seed = false } = {}) {
   const client = await pool.connect();
   try {
     const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await client.query(schema);
     console.log('schema.sql applied');
 
-    if (process.argv.includes('--seed')) {
+    if (seed) {
       await seedAuthData(client);
-      const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
-      await client.query(seed);
+      const seedSql = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
+      await client.query(seedSql);
       console.log('seed.sql + auth seed applied');
     }
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = migrate;
+
+if (require.main === module) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  migrate(pool, { seed: process.argv.includes('--seed') })
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    })
+    .finally(() => pool.end());
+}
