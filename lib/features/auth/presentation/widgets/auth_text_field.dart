@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/clay_decoration.dart';
 
+/// Login input pressed into the clay card (sunken), like the app's other
+/// text fields.
 class AuthTextField extends StatelessWidget {
   const AuthTextField({
     super.key,
@@ -13,16 +17,8 @@ class AuthTextField extends StatelessWidget {
     this.onSubmitted,
   });
 
-  static const BorderRadius _radius = BorderRadius.all(Radius.circular(12));
-
-  static const OutlineInputBorder _enabledBorder = OutlineInputBorder(
-    borderRadius: _radius,
-    borderSide: BorderSide(color: AppColors.fieldBorder),
-  );
-
-  static const OutlineInputBorder _focusedBorder = OutlineInputBorder(
-    borderRadius: _radius,
-    borderSide: BorderSide(color: AppColors.onPanel, width: 1.5),
+  static const BorderRadius _radius = BorderRadius.all(
+    Radius.circular(AppTheme.fieldRadius),
   );
 
   final TextEditingController controller;
@@ -34,21 +30,25 @@ class AuthTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      textInputAction: textInputAction,
-      onSubmitted: onSubmitted,
-      style: const TextStyle(color: AppColors.onPanel),
-      cursorColor: AppColors.onPanel,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppColors.onPanelMuted),
-        prefixIcon: Icon(icon, color: AppColors.onPanelMuted),
-        filled: true,
-        fillColor: AppColors.fieldFill,
-        enabledBorder: _enabledBorder,
-        focusedBorder: _focusedBorder,
+    return DecoratedBox(
+      decoration: ClayDecoration(
+        color: AppColors.panelSurface,
+        borderRadius: _radius,
+        sunken: true,
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        textInputAction: textInputAction,
+        onSubmitted: onSubmitted,
+        style: TextStyle(color: AppColors.onSurface),
+        cursorColor: AppColors.primary,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: AppColors.onSurfaceMuted),
+          prefixIcon: Icon(icon, color: AppColors.onSurfaceMuted),
+          filled: false,
+        ),
       ),
     );
   }

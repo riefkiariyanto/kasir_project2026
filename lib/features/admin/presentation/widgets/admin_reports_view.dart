@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/widgets/brand_title.dart';
-import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/cart_item.dart';
 import '../../../cashier/data/employee.dart';
 import '../../../cashier/data/employee_repository.dart';
@@ -16,27 +15,34 @@ import '../../../cashier/data/finance_entry.dart';
 import '../../../cashier/data/finance_repository.dart';
 import '../../../cashier/data/order.dart';
 import '../../../cashier/data/order_repository.dart';
-import '../widgets/admin_bottom_nav.dart';
 
-class AdminReportsPage extends StatefulWidget {
-  const AdminReportsPage({
+/// Called when a summary card's detail link is tapped, to open the
+/// transaction history pre-filtered to what that card counted.
+typedef OpenFilteredOrders =
+    void Function({String? employee, DateTime? date, PaymentMethod? method});
+
+/// Sales report shown as the admin home tab.
+class AdminReportsView extends StatefulWidget {
+  const AdminReportsView({
     super.key,
+    required this.onOpenOrders,
     this.orderRepository = const OrderRepository(),
     this.financeRepository = const FinanceRepository(),
     this.employeeRepository = const EmployeeRepository(),
   });
 
+  final OpenFilteredOrders onOpenOrders;
   final OrderRepository orderRepository;
   final FinanceRepository financeRepository;
   final EmployeeRepository employeeRepository;
 
   @override
-  State<AdminReportsPage> createState() => _AdminReportsPageState();
+  State<AdminReportsView> createState() => _AdminReportsViewState();
 }
 
 enum _ReportFilterMode { all, day, week, month }
 
-class _AdminReportsPageState extends State<AdminReportsPage> {
+class _AdminReportsViewState extends State<AdminReportsView> {
   static const List<String> _monthNames = <String>[
     'Januari',
     'Februari',
@@ -68,9 +74,15 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   }
 
   Future<void> _load() async {
-    final List<Order> orders = await widget.orderRepository.fetchAll();
-    final List<FinanceEntry> finance = await widget.financeRepository.fetchAll();
-    final List<Employee> employees = await widget.employeeRepository.fetchAll();
+    final (
+      List<Order> orders,
+      List<FinanceEntry> finance,
+      List<Employee> employees,
+    ) = await (
+      widget.orderRepository.fetchAll(),
+      widget.financeRepository.fetchAll(),
+      widget.employeeRepository.fetchAll(),
+    ).wait;
     if (mounted) {
       setState(() {
         _orders = orders;
@@ -308,196 +320,148 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AppColors.darkNotifier,
-      builder: (BuildContext context, bool isDark, _) =>
-          _buildScaffold(context),
-    );
-  }
-
-  void _onNavSelected(BuildContext context, int index) {
-    if (index == 1) {
-      return;
-    }
-    Navigator.of(context).pop(<String, dynamic>{'index': index});
-  }
-
-  Widget _buildScaffold(BuildContext context) {
     final List<({String name, int quantity, int revenue})> productSales =
         _productSales;
     final String revenueLabel = 'Pendapatan $_periodLabel';
     final bool hasData = productSales.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      extendBody: true,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: AppStrings.back,
-          icon: const Icon(Icons.arrow_back),
-        ),
-        title: BrandTitle(text: AppStrings.adminDashboardReport),
-        actions: <Widget>[
-          const ThemeToggleButton(),
-        ],
-      ),
-      bottomNavigationBar: AdminBottomNav(
-        currentIndex: 1,
-        onSelected: (int index) => _onNavSelected(context, index),
-      ),
-      body: _orders == null || _financeEntries == null || _employees == null
-          ? const Center(child: CircularProgressIndicator())
-          : Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1080),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-            children: <Widget>[
-              Text(
-                'Ringkasan Penjualan',
-                style: TextStyle(
-                  fontSize: 19.2,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildFilterBar(context),
-              const SizedBox(height: 16),
-              Row(
+    return _orders == null || _financeEntries == null || _employees == null
+        ? const Center(child: CircularProgressIndicator())
+        : Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1080),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
                 children: <Widget>[
-                  Expanded(
-                    child: _ReportCard(
-                      title: 'Transaksi',
-                      value: '$_totalTransactions',
-                      icon: Icons.receipt_long_outlined,
-                      onDetailTap: () {
-                        Navigator.of(context).pop(<String, dynamic>{
-                          'index': 3,
-                          'employee': _employeeFilter,
-                          'date': _selectedDate,
-                        });
-                      },
+                  Text(
+                    'Ringkasan Penjualan',
+                    style: TextStyle(
+                      fontSize: 19.2,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ReportCard(
-                      title: 'Produk Terjual',
-                      value: '$_totalItemsSold',
-                      icon: Icons.inventory_2_outlined,
-                    ),
+                  const SizedBox(height: 12),
+                  _buildFilterBar(context),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _ReportCard(
+                          title: 'Transaksi',
+                          value: '$_totalTransactions',
+                          icon: Icons.receipt_long_outlined,
+                          onDetailTap: () => widget.onOpenOrders(
+                            employee: _employeeFilter,
+                            date: _selectedDate,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ReportCard(
+                          title: 'Produk Terjual',
+                          value: '$_totalItemsSold',
+                          icon: Icons.inventory_2_outlined,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _ReportCard(
-                      title: 'Tunai',
-                      value:
-                          '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.cash))}',
-                      icon: Icons.money_outlined,
-                      isPositive: true,
-                      onDetailTap: () {
-                        Navigator.of(context).pop(<String, dynamic>{
-                          'index': 3,
-                          'employee': _employeeFilter,
-                          'date': _selectedDate,
-                          'method': PaymentMethod.cash,
-                        });
-                      },
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _ReportCard(
+                          title: 'Tunai',
+                          value:
+                              '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.cash))}',
+                          icon: Icons.money_outlined,
+                          isPositive: true,
+                          onDetailTap: () => widget.onOpenOrders(
+                            employee: _employeeFilter,
+                            date: _selectedDate,
+                            method: PaymentMethod.cash,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ReportCard(
+                          title: 'QRIS',
+                          value:
+                              '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.qris))}',
+                          icon: Icons.qr_code_2_outlined,
+                          isPositive: true,
+                          onDetailTap: () => widget.onOpenOrders(
+                            employee: _employeeFilter,
+                            date: _selectedDate,
+                            method: PaymentMethod.qris,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ReportCard(
-                      title: 'QRIS',
-                      value:
-                          '+${CurrencyFormatter.rupiah(_revenueByMethod(PaymentMethod.qris))}',
-                      icon: Icons.qr_code_2_outlined,
-                      isPositive: true,
-                      onDetailTap: () {
-                        Navigator.of(context).pop(<String, dynamic>{
-                          'index': 3,
-                          'employee': _employeeFilter,
-                          'date': _selectedDate,
-                          'method': PaymentMethod.qris,
-                        });
-                      },
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _ReportCard(
+                          title: revenueLabel,
+                          value: '+${CurrencyFormatter.rupiah(_netRevenue)}',
+                          icon: Icons.payments_outlined,
+                          isPositive: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ReportCard(
+                          title: 'Pengeluaran $_periodLabel',
+                          value: _totalLoan > 0
+                              ? '-${CurrencyFormatter.rupiah(_totalLoan)}'
+                              : CurrencyFormatter.rupiah(0),
+                          icon: Icons.money_off_outlined,
+                          isPositive: false,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _ReportCard(
-                      title: revenueLabel,
-                      value: '+${CurrencyFormatter.rupiah(_netRevenue)}',
-                      icon: Icons.payments_outlined,
-                      isPositive: true,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ReportCard(
-                      title: 'Pengeluaran $_periodLabel',
-                      value: _totalLoan > 0
-                          ? '-${CurrencyFormatter.rupiah(_totalLoan)}'
-                          : CurrencyFormatter.rupiah(0),
-                      icon: Icons.money_off_outlined,
-                      isPositive: false,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildFinanceHistorySection(),
-              if (hasData) ...<Widget>[
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    final Widget productList = _buildProductSalesSection(
-                      productSales,
-                    );
-                    final Widget donut = _buildDonutSection();
+                  const SizedBox(height: 24),
+                  _buildFinanceHistorySection(),
+                  if (hasData) ...<Widget>[
+                    const SizedBox(height: 24),
+                    LayoutBuilder(
+                      builder:
+                          (BuildContext context, BoxConstraints constraints) {
+                            final Widget productList =
+                                _buildProductSalesSection(productSales);
+                            final Widget donut = _buildDonutSection();
 
-                    if (constraints.maxWidth >= 700) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(flex: 3, child: productList),
-                          const SizedBox(width: 16),
-                          Expanded(flex: 2, child: donut),
-                        ],
-                      );
-                    }
+                            if (constraints.maxWidth >= 700) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Expanded(flex: 3, child: productList),
+                                  const SizedBox(width: 16),
+                                  Expanded(flex: 2, child: donut),
+                                ],
+                              );
+                            }
 
-                    return Column(
-                      children: <Widget>[
-                        donut,
-                        const SizedBox(height: 24),
-                        productList,
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
+                            return Column(
+                              children: <Widget>[
+                                donut,
+                                const SizedBox(height: 24),
+                                productList,
+                              ],
+                            );
+                          },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
   }
 
   Widget _buildFinanceHistorySection() {
@@ -521,7 +485,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.divider),
             ),
             child: Text(
@@ -534,11 +498,10 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
             Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
+              decoration: ClayDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.divider),
-                boxShadow: AppColors.cardShadow,
               ),
               child: Row(
                 children: <Widget>[
@@ -604,6 +567,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       ],
     );
   }
+
   Widget _buildProductSalesSection(
     List<({String name, int quantity, int revenue})> productSales,
   ) {
@@ -670,7 +634,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       backgroundColor: AppColors.panelSurface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+        color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
         fontWeight: FontWeight.w600,
         fontSize: 13,
       ),
@@ -711,10 +675,9 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
     return PopupMenuButton<String?>(
       initialValue: _employeeFilter,
       onSelected: (String? value) => setState(() => _employeeFilter = value),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       color: AppColors.panelSurface,
-      itemBuilder: (BuildContext context) =>
-          <PopupMenuEntry<String?>>[
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String?>>[
         PopupMenuItem<String?>(
           value: null,
           child: Row(
@@ -750,11 +713,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(
-                Icons.badge_outlined,
-                size: 14,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.badge_outlined, size: 14, color: AppColors.primary),
               const SizedBox(width: 6),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 160),
@@ -791,7 +750,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       backgroundColor: AppColors.panelSurface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+        color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
         fontWeight: FontWeight.w600,
         fontSize: 15,
       ),
@@ -860,11 +819,10 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
-        boxShadow: AppColors.cardShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -917,7 +875,7 @@ class _ReportCard extends StatelessWidget {
                       foregroundColor: AppColors.primary,
                       backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
                           color: AppColors.primary.withValues(alpha: 0.35),
                         ),
@@ -957,11 +915,10 @@ class _ProductSalesRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
-        boxShadow: AppColors.cardShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1032,13 +989,15 @@ class _DonutChart extends StatelessWidget {
   final List<({String name, int value})> data;
   final int total;
 
+  // Pastel clay tones: brand pink first, then hues far enough apart on the
+  // colour wheel that neighbouring slices stay distinguishable.
   static const List<Color> _palette = <Color>[
-    Color(0xFF7C4DFF),
-    Color(0xFF26A69A),
-    Color(0xFFFFA726),
-    Color(0xFFEF5350),
-    Color(0xFF42A5F5),
-    Color(0xFFAB47BC),
+    Color(0xFFE0569E),
+    Color(0xFF6CC3A0),
+    Color(0xFFF2B447),
+    Color(0xFF7F9CF0),
+    Color(0xFFF08A7E),
+    Color(0xFFAE85DE),
   ];
 
   @override
@@ -1049,7 +1008,7 @@ class _DonutChart extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.divider),
         ),
         child: Text(
@@ -1065,11 +1024,10 @@ class _DonutChart extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
-        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,

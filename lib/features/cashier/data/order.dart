@@ -23,15 +23,21 @@ class Order {
       items.fold(0, (int sum, CartItem item) => sum + item.quantity);
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    final List<dynamic> rawItems = json['items'] as List<dynamic>? ?? <dynamic>[];
+    final List<dynamic> rawItems =
+        json['items'] as List<dynamic>? ?? <dynamic>[];
     return Order(
       id: json['invoice_no'] as String? ?? json['id'] as String,
       items: rawItems.map((dynamic e) {
         final Map<String, dynamic> item = e as Map<String, dynamic>;
         return CartItem(
           product: Product(
-            id: item['product_id'] as String? ?? item['productId'] as String? ?? '',
-            name: item['product_name'] as String? ?? item['productName'] as String,
+            id:
+                item['product_id'] as String? ??
+                item['productId'] as String? ??
+                '',
+            name:
+                item['product_name'] as String? ??
+                item['productName'] as String,
             price: item['price'] as int,
             category: '',
           ),
@@ -39,7 +45,9 @@ class Order {
         );
       }).toList(),
       total: json['total'] as int,
-      method: (json['method'] as String) == 'cash' ? PaymentMethod.cash : PaymentMethod.qris,
+      method: (json['method'] as String) == 'cash'
+          ? PaymentMethod.cash
+          : PaymentMethod.qris,
       createdAt: DateTime.parse(json['created_at'] as String),
       cashierName: json['cashier_name'] as String,
     );

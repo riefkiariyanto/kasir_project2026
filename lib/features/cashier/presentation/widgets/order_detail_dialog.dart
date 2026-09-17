@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
+import '../../../../core/printing/print_receipt_button.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/cart_item.dart';
 import '../../data/order.dart';
@@ -19,14 +21,6 @@ class OrderDetailDialog extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final String hour = time.hour.toString().padLeft(2, '0');
-    final String minute = time.minute.toString().padLeft(2, '0');
-    return '${time.day.toString().padLeft(2, '0')}/'
-        '${time.month.toString().padLeft(2, '0')}/'
-        '${time.year} $hour:$minute';
-  }
-
   Color _methodColor(PaymentMethod method) {
     switch (method) {
       case PaymentMethod.cash:
@@ -41,7 +35,6 @@ class OrderDetailDialog extends StatelessWidget {
     final Color methodColor = _methodColor(order.method);
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380, maxHeight: 520),
         child: SingleChildScrollView(
@@ -57,17 +50,14 @@ class OrderDetailDialog extends StatelessWidget {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          methodColor.withValues(alpha: 0.9),
-                          methodColor.withValues(alpha: 0.7),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      color: methodColor.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(order.method.icon, color: Colors.white, size: 22),
+                    child: Icon(
+                      order.method.icon,
+                      color: methodColor,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -95,10 +85,13 @@ class OrderDetailDialog extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: methodColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       order.method.label,
@@ -116,7 +109,7 @@ class OrderDetailDialog extends StatelessWidget {
                 children: <Widget>[
                   _InfoRow(
                     label: AppStrings.orderDetailTime,
-                    value: _formatTime(order.createdAt),
+                    value: AppDateUtils.formatDateTime(order.createdAt),
                     icon: Icons.schedule_rounded,
                   ),
                   _InfoRow(
@@ -228,11 +221,16 @@ class OrderDetailDialog extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.receipt_long_outlined,
-                      size: 19, color: AppColors.onSurfaceMuted),
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 19,
+                    color: AppColors.onSurfaceMuted,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
+              PrintReceiptButton(order: order),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
@@ -246,7 +244,7 @@ class OrderDetailDialog extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
                   child: const Text(AppStrings.close),

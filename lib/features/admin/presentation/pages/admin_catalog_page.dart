@@ -1,14 +1,17 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/image_compressor.dart';
 import '../../../../core/utils/rupiah_input_formatter.dart';
 import '../../../../core/widgets/brand_title.dart';
+import '../../../../core/widgets/image_viewer_dialog.dart';
+import '../../../../core/widgets/product_thumbnail.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/category_repository.dart';
 import '../../../cashier/data/product_repository.dart';
@@ -49,7 +52,8 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   }
 
   Future<void> _load() async {
-    final List<ProductCategory> categories = await _categoryRepository.fetchAll();
+    final List<ProductCategory> categories = await _categoryRepository
+        .fetchAll();
     final List<Product> products = await _repository.fetchAll(categories);
     if (mounted) {
       setState(() {
@@ -63,13 +67,13 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
 
   List<Product> get _visibleProducts =>
       (_products ?? const <Product>[]).where((Product product) {
-    final bool matchesCategory =
-        _selectedCategory == null || product.category == _selectedCategory;
-    final String query = _searchQuery.trim().toLowerCase();
-    final bool matchesSearch =
-        query.isEmpty || product.name.toLowerCase().contains(query);
-    return matchesCategory && matchesSearch;
-  }).toList();
+        final bool matchesCategory =
+            _selectedCategory == null || product.category == _selectedCategory;
+        final String query = _searchQuery.trim().toLowerCase();
+        final bool matchesSearch =
+            query.isEmpty || product.name.toLowerCase().contains(query);
+        return matchesCategory && matchesSearch;
+      }).toList();
 
   void _openEditor({Product? product}) {
     setState(() {
@@ -95,12 +99,15 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
     });
   }
 
+  bool _hasImage(String? imageAsset) =>
+      imageAsset != null && imageAsset.trim().isNotEmpty;
+
   Future<void> _saveProduct({
     required String name,
     required int price,
     required String categoryId,
     String? tag,
-    String? imagePath,
+    Uint8List? imageBytes,
   }) async {
     if (_editingProduct == null) {
       await _repository.add(
@@ -108,7 +115,7 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         price: price,
         categoryId: categoryId,
         tag: tag,
-        imagePath: imagePath,
+        imageBytes: imageBytes,
       );
     } else {
       await _repository.update(
@@ -117,7 +124,7 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         price: price,
         categoryId: categoryId,
         tag: tag,
-        imagePath: imagePath,
+        imageBytes: imageBytes,
       );
     }
     await _load();
@@ -167,92 +174,110 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   }
 
   void _onNavSelected(int index) {
-    if (index == 2) {
+    if (index == AdminBottomNav.catalogIndex) {
       return;
     }
     Navigator.of(context).pop(index);
   }
 
   Widget _buildScaffold(BuildContext context) {
+    // Whenever the editor is open — regardless of screen width — it takes
+    // over the whole page: no separate Scaffold app bar/bottom nav stacked
+    // on top of the editor's own header, so there's exactly one scrollable
+    // region (header included) and the keyboard never has to compete with a
+    // pinned bar for space. A wide screen can still be short (a landscape
+    // tablet), so this can't be gated on width alone.
+    final bool showFullScreenEditor = _isFormVisible;
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       extendBody: true,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: AppStrings.back,
-          icon: const Icon(Icons.arrow_back),
-        ),
-        title: BrandTitle(text: AppStrings.adminProducts),
-        actions: <Widget>[
-          const ThemeToggleButton(),
-        ],
-      ),
-      bottomNavigationBar: AdminBottomNav(
-        currentIndex: 2,
-        onSelected: _onNavSelected,
-      ),
+      appBar: showFullScreenEditor
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.background,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              centerTitle: true,
+              iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
+              leading: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: AppStrings.back,
+                icon: const Icon(Icons.arrow_back),
+              ),
+              title: BrandTitle(text: AppStrings.adminProducts),
+              actions: <Widget>[const ThemeToggleButton()],
+            ),
+      bottomNavigationBar: showFullScreenEditor
+          ? null
+          : AdminBottomNav(
+              currentIndex: AdminBottomNav.catalogIndex,
+              onSelected: _onNavSelected,
+            ),
       body: _products == null || _categories == null
           ? const Center(child: CircularProgressIndicator())
+          : showFullScreenEditor
+          ? SafeArea(
+              child: _ProductEditorPanel(
+                product: _editingProduct,
+                categories: _categories ?? const <ProductCategory>[],
+                categoryRepository: _categoryRepository,
+                onSave: _saveProduct,
+                onCategoriesChanged: _load,
+                onCancel: _closeEditor,
+                scrollableHeader: true,
+              ),
+            )
           : LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final double editorWidth = constraints.maxWidth >= 700
-              ? 360
-              : constraints.maxWidth;
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: constraints.maxWidth >= 700
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Expanded(child: _buildCatalogPanel(context)),
-                      _buildPanelToggleHandle(),
-                      if (!_panelCollapsed)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: SizedBox(
-                            width: editorWidth,
-                            child: _isFormVisible
-                                ? _ProductEditorPanel(
-                                    product: _editingProduct,
-                                    categories: _categories ?? const <ProductCategory>[],
-                                    categoryRepository: _categoryRepository,
-                                    onSave: _saveProduct,
-                                    onCategoriesChanged: _load,
-                                    onCancel: _closeEditor,
-                                  )
-                                : _AddProductPlaceholder(onTap: _startAddNew),
-                          ),
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double editorWidth = constraints.maxWidth >= 700
+                    ? 360
+                    : constraints.maxWidth;
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: constraints.maxWidth >= 700
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Expanded(child: _buildCatalogPanel(context)),
+                            _buildPanelToggleHandle(),
+                            // Editing always takes over the full page (see
+                            // showFullScreenEditor above), so whenever this
+                            // panel is reachable, _isFormVisible is false —
+                            // it only ever shows the "add" placeholder.
+                            if (!_panelCollapsed)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: SizedBox(
+                                  width: editorWidth,
+                                  child: _AddProductPlaceholder(
+                                    onTap: _startAddNew,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
+                      : Column(
+                          children: <Widget>[
+                            Expanded(child: _buildCatalogPanel(context)),
+                            const SizedBox(height: 16),
+                            // Extra bottom room clears the app's floating
+                            // bottom nav pill, which would otherwise sit on
+                            // top of the add button.
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 80),
+                              child: SizedBox(
+                                height: 100,
+                                child: _AddProductPlaceholder(
+                                  onTap: _startAddNew,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                    ],
-                  )
-                : Column(
-                    children: <Widget>[
-                      Expanded(child: _buildCatalogPanel(context)),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 360,
-                        child: _isFormVisible
-                            ? _ProductEditorPanel(
-                                product: _editingProduct,
-                                categories: _categories ?? const <ProductCategory>[],
-                                categoryRepository: _categoryRepository,
-                                onSave: _saveProduct,
-                                onCategoriesChanged: _load,
-                                onCancel: _closeEditor,
-                              )
-                            : _AddProductPlaceholder(onTap: _startAddNew),
-                      ),
-                    ],
-                  ),
-          );
-        },
-      ),
+                );
+              },
+            ),
     );
   }
 
@@ -268,10 +293,10 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: _startAddNew,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 40,
                 height: 40,
-                child: Icon(Icons.add, color: AppColors.onPanel, size: 22),
+                child: Icon(Icons.add, color: AppColors.onPrimary, size: 22),
               ),
             ),
           ),
@@ -285,10 +310,9 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   Widget _buildCatalogPanel(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.panelSurface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: <Widget>[
@@ -366,15 +390,14 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
       itemBuilder: (BuildContext context, int index) {
         final Product product = products[index];
         return Container(
-          decoration: BoxDecoration(
+          decoration: ClayDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.divider),
-            boxShadow: AppColors.cardShadow,
           ),
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => _openEditor(product: product),
@@ -385,12 +408,26 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                     child: Stack(
                       children: <Widget>[
                         Positioned.fill(
-                          child: _ProductThumbnail(
-                            imageAsset: product.imageAsset,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(12),
-                            ),
-                          ),
+                          child: _hasImage(product.imageAsset)
+                              ? GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => ImageViewerDialog.show(
+                                    context,
+                                    imageUrl: product.imageAsset,
+                                  ),
+                                  child: ProductThumbnail(
+                                    imageAsset: product.imageAsset,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                  ),
+                                )
+                              : ProductThumbnail(
+                                  imageAsset: product.imageAsset,
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(20),
+                                  ),
+                                ),
                         ),
                         if (product.tag != null)
                           Positioned(
@@ -506,14 +543,13 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
         final Product product = products[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
+          decoration: ClayDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: AppColors.cardShadow,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => _openEditor(product: product),
@@ -524,10 +560,22 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
                     SizedBox(
                       width: 58,
                       height: 58,
-                      child: _ProductThumbnail(
-                        imageAsset: product.imageAsset,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      child: _hasImage(product.imageAsset)
+                          ? GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => ImageViewerDialog.show(
+                                context,
+                                imageUrl: product.imageAsset,
+                              ),
+                              child: ProductThumbnail(
+                                imageAsset: product.imageAsset,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            )
+                          : ProductThumbnail(
+                              imageAsset: product.imageAsset,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -572,61 +620,6 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
   }
 }
 
-class _ProductThumbnail extends StatelessWidget {
-  const _ProductThumbnail({this.imageAsset, this.borderRadius});
-
-  final String? imageAsset;
-  final BorderRadius? borderRadius;
-
-  Widget _buildPlaceholder(IconData icon) {
-    return ColoredBox(
-      color: AppColors.panelSurface,
-      child: Icon(icon, color: AppColors.onSurfaceMuted),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget image;
-    if (imageAsset == null || imageAsset!.trim().isEmpty) {
-      image = _buildPlaceholder(Icons.image_outlined);
-    } else if (imageAsset!.startsWith('assets/')) {
-      image = Image.asset(
-        imageAsset!,
-        fit: BoxFit.cover,
-        errorBuilder:
-            (BuildContext context, Object error, StackTrace? stackTrace) =>
-                _buildPlaceholder(Icons.broken_image_outlined),
-      );
-    } else if (imageAsset!.startsWith('http')) {
-      image = Image.network(
-        imageAsset!,
-        fit: BoxFit.cover,
-        errorBuilder:
-            (BuildContext context, Object error, StackTrace? stackTrace) =>
-                _buildPlaceholder(Icons.broken_image_outlined),
-      );
-    } else {
-      image = Image.file(
-        File(imageAsset!),
-        fit: BoxFit.cover,
-        errorBuilder:
-            (BuildContext context, Object error, StackTrace? stackTrace) =>
-                _buildPlaceholder(Icons.broken_image_outlined),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: borderRadius ?? BorderRadius.circular(12),
-      child: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: image,
-      ),
-    );
-  }
-}
-
 class _AddProductPlaceholder extends StatelessWidget {
   const _AddProductPlaceholder({required this.onTap});
 
@@ -635,10 +628,9 @@ class _AddProductPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
         child: Material(
@@ -654,7 +646,7 @@ class _AddProductPlaceholder extends StatelessWidget {
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.add, color: AppColors.onPanel, size: 28),
+              child: Icon(Icons.add, color: AppColors.onPrimary, size: 28),
             ),
           ),
         ),
@@ -663,13 +655,14 @@ class _AddProductPlaceholder extends StatelessWidget {
   }
 }
 
-typedef ProductSaveCallback = Future<void> Function({
-  required String name,
-  required int price,
-  required String categoryId,
-  String? tag,
-  String? imagePath,
-});
+typedef ProductSaveCallback =
+    Future<void> Function({
+      required String name,
+      required int price,
+      required String categoryId,
+      String? tag,
+      Uint8List? imageBytes,
+    });
 
 class _ProductEditorPanel extends StatefulWidget {
   const _ProductEditorPanel({
@@ -679,6 +672,7 @@ class _ProductEditorPanel extends StatefulWidget {
     required this.onSave,
     required this.onCategoriesChanged,
     required this.onCancel,
+    this.scrollableHeader = false,
   });
 
   final Product? product;
@@ -687,6 +681,13 @@ class _ProductEditorPanel extends StatefulWidget {
   final ProductSaveCallback onSave;
   final Future<void> Function() onCategoriesChanged;
   final VoidCallback onCancel;
+
+  /// When true, the "Tambah/Edit Catalog" header scrolls together with the
+  /// fields instead of staying pinned above them — used on narrow layouts
+  /// where the Scaffold app bar is also removed, so there's exactly one
+  /// header and the whole page (header included) can scroll clear of the
+  /// on-screen keyboard instead of two bars stacking on top of each other.
+  final bool scrollableHeader;
 
   @override
   State<_ProductEditorPanel> createState() => _ProductEditorPanelState();
@@ -698,13 +699,15 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
   late TextEditingController _name;
   late TextEditingController _price;
   String? _existingImageAsset;
-  String? _pickedImagePath;
+  Uint8List? _pickedImageBytes;
   String? _selectedCategory;
   bool _isSaving = false;
+  bool _isPickingImage = false;
 
   List<String> get _categoryNames {
-    final List<String> names =
-        widget.categories.map((ProductCategory category) => category.name).toList();
+    final List<String> names = widget.categories
+        .map((ProductCategory category) => category.name)
+        .toList();
     final String? selected = _selectedCategory;
     if (selected != null && !names.contains(selected)) {
       names.add(selected);
@@ -738,7 +741,7 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
             ).replaceFirst('Rp', ''),
     );
     _existingImageAsset = widget.product?.imageAsset;
-    _pickedImagePath = null;
+    _pickedImageBytes = null;
     _selectedCategory = widget.product?.category;
   }
 
@@ -752,12 +755,34 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
   Future<void> _pickImage() async {
     final XFile? picked = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
+      // Let the OS/browser's native (hardware-accelerated) decoder downscale
+      // the photo before it ever reaches our pure-Dart compressor below —
+      // decoding a multi-megapixel original in pure Dart is what makes a
+      // large photo feel slow.
+      maxWidth: ImageCompressor.maxDimension.toDouble(),
+      maxHeight: ImageCompressor.maxDimension.toDouble(),
     );
     if (picked == null) {
       return;
     }
-    setState(() => _pickedImagePath = picked.path);
+    setState(() => _isPickingImage = true);
+    // Let the spinner paint at least one frame before the (potentially
+    // heavy, synchronous-on-web) compression work starts.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    try {
+      final Uint8List rawBytes = await picked.readAsBytes();
+      final Uint8List compressed = await compute(
+        ImageCompressor.compress,
+        rawBytes,
+      );
+      if (mounted) {
+        setState(() => _pickedImageBytes = compressed);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
   }
 
   Future<void> _addNewCategory() async {
@@ -811,120 +836,144 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
       name: _name.text.trim(),
       price: int.tryParse(_price.text.replaceAll('.', '')) ?? 0,
       categoryId: category.id,
-      imagePath: _pickedImagePath,
+      imageBytes: _pickedImageBytes,
     );
     if (mounted) {
       setState(() => _isSaving = false);
     }
   }
 
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+      decoration: widget.scrollableHeader
+          ? null
+          : BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.divider)),
+            ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              widget.product == null ? 'Tambah Catalog' : 'Edit Catalog',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: widget.onCancel,
+            icon: Icon(Icons.close, color: AppColors.onSurface),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Extra bottom padding equal to the keyboard height so the scroll view
+    // has room to bring any field (or the buttons) fully above the
+    // on-screen keyboard instead of it being covered.
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    final Widget fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (widget.scrollableHeader) _buildHeader(),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            widget.scrollableHeader ? 0 : 12,
+            16,
+            12 + bottomInset,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _buildImagePicker(),
+              const SizedBox(height: 12),
+              _buildField('Nama Produk', _name),
+              _buildField(
+                'Harga',
+                _price,
+                keyboardType: TextInputType.number,
+                prefixText: 'Rp ',
+                inputFormatters: <TextInputFormatter>[RupiahInputFormatter()],
+              ),
+              _buildCategoryField(),
+              const SizedBox(height: 20),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: widget.onCancel,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: AppColors.inputBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(AppStrings.cancel),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving || _isPickingImage ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: _isSaving
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.onPrimary,
+                              ),
+                            )
+                          : const Text('Simpan'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.scrollableHeader) {
+      // Everything, header included, scrolls as one unit — nothing stays
+      // pinned above the fields competing with the keyboard for space.
+      return SingleChildScrollView(child: fields);
+    }
+
     return Container(
       padding: const EdgeInsets.all(0),
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.divider)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Flexible(
-                  child: Text(
-                    widget.product == null ? 'Tambah Catalog' : 'Edit Catalog',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: widget.onCancel,
-                  icon: Icon(Icons.close, color: AppColors.onSurface),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              children: <Widget>[
-                _buildImagePicker(),
-                const SizedBox(height: 12),
-                _buildField('Nama Produk', _name),
-                _buildField(
-                  'Harga',
-                  _price,
-                  keyboardType: TextInputType.number,
-                  prefixText: 'Rp ',
-                  inputFormatters: <TextInputFormatter>[RupiahInputFormatter()],
-                ),
-                _buildCategoryField(),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.divider)),
-            ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: widget.onCancel,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: AppColors.inputBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(AppStrings.cancel),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPanel,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.onPanel,
-                            ),
-                          )
-                        : const Text('Simpan'),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(),
+          Expanded(child: SingleChildScrollView(child: fields)),
         ],
       ),
     );
@@ -932,34 +981,45 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
 
   Widget _buildImagePicker() {
     return GestureDetector(
-      onTap: _pickImage,
+      onTap: _isPickingImage ? null : _pickImage,
       child: Container(
         height: 140,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: AppColors.panelSurface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            _ProductThumbnail(imageAsset: _pickedImagePath ?? _existingImageAsset),
-            Positioned(
-              right: 8,
-              bottom: 8,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.photo_camera_outlined,
-                  color: AppColors.onPanel,
-                  size: 18,
+            ProductThumbnail(
+              imageAsset: _existingImageAsset,
+              previewBytes: _pickedImageBytes,
+              targetWidth: 320,
+            ),
+            if (_isPickingImage)
+              Container(
+                color: Colors.black45,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(color: Colors.white),
+              )
+            else
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.photo_camera_outlined,
+                    color: AppColors.onPrimary,
+                    size: 18,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -992,7 +1052,7 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
                 backgroundColor: AppColors.panelSurface,
                 selectedColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+                  color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
                   fontWeight: FontWeight.w600,
                   fontSize: 15.6,
                 ),
@@ -1048,11 +1108,11 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
             vertical: 12,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),

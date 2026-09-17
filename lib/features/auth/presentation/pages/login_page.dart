@@ -8,6 +8,7 @@ import '../../../../core/widgets/theme_toggle_button.dart';
 import '../widgets/employee_access_button.dart';
 import '../widgets/labeled_divider.dart';
 import '../widgets/login_form.dart';
+import '../widgets/login_card.dart';
 import '../widgets/login_header.dart';
 import '../widgets/rotated_background.dart';
 
@@ -22,6 +23,15 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Clay colours are read while building, so rebuild when the theme
+    // toggle on this page flips dark mode.
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppColors.darkNotifier,
+      builder: (BuildContext context, bool isDark, _) => _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -47,14 +57,31 @@ class LoginPage extends StatelessWidget {
                     children: <Widget>[
                       const LoginHeader(),
                       const SizedBox(height: 32),
-                      LoginForm(
-                        onSuccess: () => _openRoute(context, AppRoutes.admin),
+                      LoginCard(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            LoginForm(
+                              onSuccess: () =>
+                                  _openRoute(context, AppRoutes.admin),
+                            ),
+                            const SizedBox(height: 20),
+                            const LabeledDivider(label: AppStrings.orDivider),
+                            const SizedBox(height: 20),
+                            EmployeeAccessButton(
+                              onPressed: () =>
+                                  _openRoute(context, AppRoutes.cashier),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      const LabeledDivider(label: AppStrings.orDivider),
-                      const SizedBox(height: 24),
-                      EmployeeAccessButton(
-                        onPressed: () => _openRoute(context, AppRoutes.cashier),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppStrings.appWatermark,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.onPanel.withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),

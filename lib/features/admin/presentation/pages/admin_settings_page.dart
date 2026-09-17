@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/data/store_repository.dart';
+import '../../../../core/printing/printer_settings_tile.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../widgets/admin_bottom_nav.dart';
@@ -58,12 +61,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _openStoreEditor() async {
     final StoreInfo current = StoreRepository.data;
-    final TextEditingController nameCtrl =
-        TextEditingController(text: current.name);
-    final TextEditingController addressCtrl =
-        TextEditingController(text: current.address);
-    final TextEditingController phoneCtrl =
-        TextEditingController(text: current.phone);
+    final TextEditingController nameCtrl = TextEditingController(
+      text: current.name,
+    );
+    final TextEditingController addressCtrl = TextEditingController(
+      text: current.address,
+    );
+    final TextEditingController phoneCtrl = TextEditingController(
+      text: current.phone,
+    );
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
     final bool? saved = await showDialog<bool>(
@@ -107,13 +113,23 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           FilledButton(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
-                await const StoreRepository().update(StoreInfo(
-                  name: nameCtrl.text.trim(),
-                  address: addressCtrl.text.trim(),
-                  phone: phoneCtrl.text.trim(),
-                ));
-                if (context.mounted) {
-                  Navigator.of(context).pop(true);
+                try {
+                  await const StoreRepository().update(
+                    StoreInfo(
+                      name: nameCtrl.text.trim(),
+                      address: addressCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                    ),
+                  );
+                  if (context.mounted) {
+                    Navigator.of(context).pop(true);
+                  }
+                } on ApiException catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(e.message)));
+                  }
                 }
               }
             },
@@ -212,10 +228,10 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
@@ -242,6 +258,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 _buildStoreSection(),
                 const SizedBox(height: 28),
                 _buildCategoryChips(),
+                const SizedBox(height: 28),
+                const PrinterSettingsTile(),
                 const SizedBox(height: 28),
                 _buildAccountSection(),
               ],
@@ -270,23 +288,14 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             const SizedBox(height: 12),
             Material(
               color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               child: InkWell(
                 onTap: _openStoreEditor,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 child: Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.surface,
-                        AppColors.surface.withValues(alpha: 0.93),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppColors.cardShadow,
+                  decoration: ClayDecoration(
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -298,27 +307,12 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                             height: 60,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.primary.withValues(alpha: 0.9),
-                                  AppColors.primary.withValues(alpha: 0.7),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
                             ),
                             child: Icon(
                               Icons.storefront_outlined,
-                              color: Colors.white,
+                              color: AppColors.primary,
                               size: 30,
                             ),
                           ),
@@ -356,7 +350,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -479,10 +473,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
-          decoration: BoxDecoration(
+          decoration: ClayDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: AppColors.cardShadow,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: ListTile(
             onTap: _openChangePassword,
@@ -583,7 +576,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -602,7 +595,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -622,7 +615,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -727,9 +720,8 @@ class _StyledTextField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
-      validator: (String? value) => (value == null || value.trim().isEmpty)
-          ? 'Wajib diisi'
-          : null,
+      validator: (String? value) =>
+          (value == null || value.trim().isEmpty) ? 'Wajib diisi' : null,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: AppColors.onSurfaceMuted),
@@ -741,15 +733,15 @@ class _StyledTextField extends StatelessWidget {
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppColors.divider),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),

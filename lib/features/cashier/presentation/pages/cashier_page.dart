@@ -3,6 +3,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
@@ -17,6 +18,7 @@ import '../widgets/cashier_drawer.dart';
 import '../widgets/category_grid.dart';
 import '../widgets/orders_list.dart';
 import '../widgets/promo_banner.dart';
+import 'cashier_settings_page.dart';
 import 'finance_tab.dart';
 import 'transaction_page.dart';
 
@@ -49,6 +51,7 @@ class _CashierPageState extends State<CashierPage> {
   PaymentMethod? _ordersFilterMethod;
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
   bool _ordersGridView = false;
+  bool _ordersSortNewestFirst = true;
 
   List<ProductCategory>? _categories;
   List<Order>? _orders;
@@ -61,8 +64,8 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Future<void> _loadCategories() async {
-    final List<ProductCategory> categories =
-        await widget.categoryRepository.fetchAll();
+    final List<ProductCategory> categories = await widget.categoryRepository
+        .fetchAll();
     if (mounted) {
       setState(() => _categories = categories);
     }
@@ -76,7 +79,8 @@ class _CashierPageState extends State<CashierPage> {
   }
 
   Future<void> _loadEmployees() async {
-    final List<Employee> employees = await widget.employeeRepository.fetchNames();
+    final List<Employee> employees = await widget.employeeRepository
+        .fetchNames();
     if (mounted) {
       setState(() => _employees = employees);
     }
@@ -98,12 +102,6 @@ class _CashierPageState extends State<CashierPage> {
     });
   }
 
-  bool _isSameDate(DateTime a, DateTime b) => AppDateUtils.isSameDate(a, b);
-
-  bool _isSameMonth(DateTime a, DateTime b) => AppDateUtils.isSameMonth(a, b);
-
-  bool _isSameWeek(DateTime a, DateTime b) => AppDateUtils.isSameWeek(a, b);
-
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
     final DateTime now = DateTime.now();
@@ -115,24 +113,35 @@ class _CashierPageState extends State<CashierPage> {
           _ordersFilterMethod == null || order.method == _ordersFilterMethod;
       final bool matchesSearch =
           query.isEmpty || order.id.toLowerCase().contains(query);
-      
+      final bool matchesDate =
+          _ordersFilterDate == null ||
+          AppDateUtils.isSameDate(order.createdAt, _ordersFilterDate!);
+
       bool matchesPeriod = true;
       switch (_ordersFilterPeriod) {
         case _OrdersFilterPeriod.all:
           matchesPeriod = true;
           break;
         case _OrdersFilterPeriod.day:
-          matchesPeriod = _isSameDate(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameDate(order.createdAt, now);
           break;
         case _OrdersFilterPeriod.week:
-          matchesPeriod = _isSameWeek(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameWeek(order.createdAt, now);
           break;
         case _OrdersFilterPeriod.month:
-          matchesPeriod = _isSameMonth(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameMonth(order.createdAt, now);
           break;
       }
-      return matchesEmployee && matchesMethod && matchesSearch && matchesPeriod;
-    }).toList();
+      return matchesEmployee &&
+          matchesMethod &&
+          matchesSearch &&
+          matchesDate &&
+          matchesPeriod;
+    }).toList()..sort(
+      (Order a, Order b) => _ordersSortNewestFirst
+          ? b.createdAt.compareTo(a.createdAt)
+          : a.createdAt.compareTo(b.createdAt),
+    );
   }
 
   Future<void> _pickOrdersFilterDate(BuildContext context) async {
@@ -148,13 +157,10 @@ class _CashierPageState extends State<CashierPage> {
     }
   }
 
-  String _formatFilterDate(DateTime date) => AppDateUtils.formatDate(date);
-
   Future<void> _openTransaction({String? category}) async {
     final Object? result = await Navigator.of(context).push(
       MaterialPageRoute<Object>(
-        builder: (_) =>
-            TransactionPage(initialCategory: category),
+        builder: (_) => TransactionPage(initialCategory: category),
       ),
     );
 
@@ -216,6 +222,7 @@ class _CashierPageState extends State<CashierPage> {
     _ordersFilterMethod = null;
     _ordersSearchQuery = '';
     _ordersFilterPeriod = _OrdersFilterPeriod.all;
+    _ordersSortNewestFirst = true;
   }
 
   Widget _buildBody(BuildContext context) {
@@ -280,6 +287,20 @@ class _CashierPageState extends State<CashierPage> {
             Expanded(child: _buildOrdersSearchField()),
             const SizedBox(width: 8),
             IconButton(
+              onPressed: () => setState(
+                () => _ordersSortNewestFirst = !_ordersSortNewestFirst,
+              ),
+              tooltip: _ordersSortNewestFirst
+                  ? 'Terbaru ke Terlama'
+                  : 'Terlama ke Terbaru',
+              icon: Icon(
+                _ordersSortNewestFirst
+                    ? Icons.arrow_downward
+                    : Icons.arrow_upward,
+                color: AppColors.onSurface,
+              ),
+            ),
+            IconButton(
               onPressed: () =>
                   setState(() => _ordersGridView = !_ordersGridView),
               tooltip: _ordersGridView ? 'Tampilan List' : 'Tampilan Grid',
@@ -311,13 +332,9 @@ class _CashierPageState extends State<CashierPage> {
           const SizedBox(width: 6),
           _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
           const SizedBox(width: 6),
-          IntrinsicWidth(
-            child: _buildEmployeeDropdown(context),
-          ),
+          IntrinsicWidth(child: _buildEmployeeDropdown(context)),
           const SizedBox(width: 6),
-          IntrinsicWidth(
-            child: _buildMethodDropdown(context),
-          ),
+          IntrinsicWidth(child: _buildMethodDropdown(context)),
           const SizedBox(width: 6),
           _buildOrdersDateFilterChip(context),
         ],
@@ -334,7 +351,7 @@ class _CashierPageState extends State<CashierPage> {
       backgroundColor: AppColors.surface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+        color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
         fontWeight: FontWeight.w600,
         fontSize: 13,
       ),
@@ -344,20 +361,19 @@ class _CashierPageState extends State<CashierPage> {
             : AppColors.onSurfaceMuted.withValues(alpha: 0.25),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: isSelected ? 2 : 0,
-      shadowColor: AppColors.navShadow,
     );
   }
 
   Widget _buildOrdersDateFilterChip(BuildContext context) {
     final DateTime? date = _ordersFilterDate;
-    final String label = date == null ? 'Tanggal' : _formatFilterDate(date);
+    final String label = date == null
+        ? 'Tanggal'
+        : AppDateUtils.formatDate(date);
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
       ),
       child: Material(
         color: Colors.transparent,
@@ -394,10 +410,9 @@ class _CashierPageState extends State<CashierPage> {
 
   Widget _buildMethodDropdown(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
       ),
       child: DropdownButtonFormField<PaymentMethod?>(
         isExpanded: false,
@@ -442,10 +457,9 @@ class _CashierPageState extends State<CashierPage> {
         .toList();
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
       ),
       child: DropdownButtonFormField<String?>(
         isExpanded: false,
@@ -468,10 +482,7 @@ class _CashierPageState extends State<CashierPage> {
         ),
         style: TextStyle(fontSize: 15, color: AppColors.onSurface),
         items: <DropdownMenuItem<String?>>[
-          const DropdownMenuItem<String?>(
-            value: null,
-            child: Text('Pegawai'),
-          ),
+          const DropdownMenuItem<String?>(value: null, child: Text('Pegawai')),
           for (final String name in employeeNames)
             DropdownMenuItem<String?>(value: name, child: Text(name)),
         ],
@@ -481,10 +492,10 @@ class _CashierPageState extends State<CashierPage> {
 
   Widget _buildOrdersSearchField() {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+      decoration: ClayDecoration(
+        color: AppColors.panelSurface,
+        sunken: true,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         onChanged: (String value) => setState(() => _ordersSearchQuery = value),
@@ -496,7 +507,7 @@ class _CashierPageState extends State<CashierPage> {
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
           suffixIcon: _ordersSearchQuery.isNotEmpty
@@ -521,15 +532,18 @@ class _CashierPageState extends State<CashierPage> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       extendBody: true,
       drawer: CashierDrawer(
         onNewSale: () => _openTransaction(),
         onOpenOrders: _openOrders,
+        onOpenSettings: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const CashierSettingsPage()),
+        ),
       ),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
@@ -553,12 +567,10 @@ class _CashierPageState extends State<CashierPage> {
           text: _navIndex == 2
               ? AppStrings.adminTransactions
               : _navIndex == 3
-                  ? AppStrings.financeHeader
-                  : null,
+              ? AppStrings.financeHeader
+              : AppStrings.brandName,
         ),
-        actions: <Widget>[
-          const ThemeToggleButton(),
-        ],
+        actions: <Widget>[const ThemeToggleButton()],
       ),
       body: _buildBody(context),
       bottomNavigationBar: CashierBottomNav(
@@ -677,23 +689,12 @@ class _CashierQuickMenuGrid extends StatelessWidget {
         final _CashierMenuItem item = items[index];
         return Material(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.surface,
-                  AppColors.surface.withValues(alpha: 0.94),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: AppColors.cardShadow,
-            ),
+            decoration: ClayDecoration(borderRadius: BorderRadius.circular(24)),
             child: InkWell(
               onTap: item.onTap,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(

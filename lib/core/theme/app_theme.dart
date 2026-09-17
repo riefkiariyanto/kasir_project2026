@@ -3,20 +3,142 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 abstract final class AppTheme {
-  static final ThemeData light = ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: AppColors.seed),
-    useMaterial3: true,
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: const Color(0xFFFFFFFF),
-  );
+  static const double buttonRadius = 18;
+  static const double fieldRadius = 18;
+  static const double dialogRadius = 28;
 
-  static final ThemeData dark = ThemeData(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.seed,
-      brightness: Brightness.dark,
-    ),
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF232326),
-  );
+  static final ThemeData light = _build(ClayPalette.light, Brightness.light);
+  static final ThemeData dark = _build(ClayPalette.dark, Brightness.dark);
+
+  static ThemeData _build(ClayPalette p, Brightness brightness) {
+    final ColorScheme scheme =
+        ColorScheme.fromSeed(
+          seedColor: p.primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: p.primary,
+          onPrimary: p.onPrimary,
+          surface: p.surface,
+          onSurface: p.onSurface,
+          surfaceContainerHighest: p.panelSurface,
+          outline: p.inputBorder,
+          outlineVariant: p.divider,
+        );
+
+    final RoundedRectangleBorder buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(buttonRadius),
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: p.background,
+      canvasColor: p.background,
+      dividerColor: p.divider,
+      appBarTheme: AppBarTheme(
+        backgroundColor: p.background,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: p.onSurface,
+        elevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: p.primary,
+          foregroundColor: p.onPrimary,
+          elevation: 0,
+          shape: buttonShape,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: p.primary,
+          foregroundColor: p.onPrimary,
+          elevation: 0,
+          shape: buttonShape,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: p.primary,
+          side: BorderSide(color: p.inputBorder, width: 1.5),
+          shape: buttonShape,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: p.primary,
+          shape: buttonShape,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: p.panelSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(fieldRadius),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(fieldRadius),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(fieldRadius),
+          borderSide: BorderSide(color: p.primary, width: 1.5),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 6,
+        shadowColor: p.dropShadow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(dialogRadius),
+        ),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(dialogRadius),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: p.surface,
+        selectedColor: p.primary,
+        side: BorderSide.none,
+        shape: const StadiumBorder(),
+      ),
+      cardTheme: CardThemeData(
+        color: p.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: p.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(fieldRadius),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: p.onSurface,
+        contentTextStyle: TextStyle(color: p.surface),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: p.primary),
+      listTileTheme: ListTileThemeData(
+        iconColor: p.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
 }

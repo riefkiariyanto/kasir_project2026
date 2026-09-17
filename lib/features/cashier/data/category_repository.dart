@@ -45,7 +45,8 @@ class CategoryRepository {
   final ApiClient api;
 
   Future<List<ProductCategory>> fetchAll() async {
-    final List<dynamic> data = await api.get('/api/categories') as List<dynamic>;
+    final List<dynamic> data =
+        await api.get('/api/categories') as List<dynamic>;
     return data
         .map((dynamic e) => ProductCategory.fromJson(e as Map<String, dynamic>))
         .toList();

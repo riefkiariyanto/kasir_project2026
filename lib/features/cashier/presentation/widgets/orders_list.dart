@@ -37,38 +37,40 @@ class OrdersList extends StatelessWidget {
         child: orders.isEmpty
             ? const _OrdersEmptyState()
             : isGrid
-                ? GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-                    itemCount: orders.length,
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 380,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 2.2,
-                    ),
-                    itemBuilder: (BuildContext context, int index) {
-                      final Order order = orders[index];
-                      return OrderCard(
-                        order: order,
-                        onTap: () => OrderDetailDialog.show(context, order: order),
-                        onDelete: onDelete != null ? () => onDelete!(order) : null,
-                      );
-                    },
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
-                    itemCount: orders.length,
-                    separatorBuilder: (BuildContext context, int index) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (BuildContext context, int index) {
-                      final Order order = orders[index];
-                      return OrderCard(
-                        order: order,
-                        onTap: () => OrderDetailDialog.show(context, order: order),
-                        onDelete: onDelete != null ? () => onDelete!(order) : null,
-                      );
-                    },
-                  ),
+            ? GridView.builder(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                itemCount: orders.length,
+                // Fixed cell height: an aspect ratio shrinks the height
+                // along with narrow columns and clips the card's content.
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 380,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  mainAxisExtent: 140,
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  final Order order = orders[index];
+                  return OrderCard(
+                    order: order,
+                    onTap: () => OrderDetailDialog.show(context, order: order),
+                    onDelete: onDelete != null ? () => onDelete!(order) : null,
+                  );
+                },
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                itemCount: orders.length,
+                separatorBuilder: (BuildContext context, int index) =>
+                    const SizedBox(height: 10),
+                itemBuilder: (BuildContext context, int index) {
+                  final Order order = orders[index];
+                  return OrderCard(
+                    order: order,
+                    onTap: () => OrderDetailDialog.show(context, order: order),
+                    onDelete: onDelete != null ? () => onDelete!(order) : null,
+                  );
+                },
+              ),
       ),
     );
   }
@@ -88,12 +90,7 @@ class _OrdersEmptyState extends StatelessWidget {
             height: 80,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.12),
-                  AppColors.primary.withValues(alpha: 0.06),
-                ],
-              ),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

@@ -100,11 +100,19 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
   @override
   Widget build(BuildContext context) {
     final Color methodColor = _methodColor(widget.method);
+    final MediaQueryData media = MediaQuery.of(context);
+    // Cap the dialog to the space actually left above the on-screen
+    // keyboard. Without this the dialog keeps its full height, extends
+    // behind the keyboard, and the Flexible list below has no smaller
+    // bound to shrink into — pushing Total/PIN/buttons out of reach.
+    final double maxDialogHeight =
+        media.size.height - media.viewInsets.bottom - 48;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
+        constraints: BoxConstraints(maxWidth: 380, maxHeight: maxDialogHeight),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           child: ListenableBuilder(
@@ -112,214 +120,214 @@ class _OrderVerificationDialogState extends State<OrderVerificationDialog> {
             builder: (BuildContext context, _) {
               final List<CartItem> items = widget.cart.items;
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              methodColor.withValues(alpha: 0.9),
-                              methodColor.withValues(alpha: 0.7),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+              // One scroll for the entire dialog — header, items, total, PIN
+              // and buttons all move together. No nested scroll areas, so a
+              // single drag anywhere reaches every part of the popup.
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: methodColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
                           ),
-                          shape: BoxShape.circle,
+                          child: Icon(
+                            widget.method.icon,
+                            color: methodColor,
+                            size: 22,
+                          ),
                         ),
-                        child: Icon(widget.method.icon,
-                            color: Colors.white, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              AppStrings.verifyOrderTitle,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.onSurface,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                AppStrings.verifyOrderTitle,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              AppStrings.verifyOrderItems,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.onSurfaceMuted,
+                              const SizedBox(height: 2),
+                              Text(
+                                AppStrings.verifyOrderItems,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurfaceMuted,
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: methodColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            widget.method.label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: methodColor,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: methodColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    if (items.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Text(
-                          widget.method.label,
+                          AppStrings.cartEmpty,
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: methodColor,
+                            color: AppColors.onSurfaceMuted,
                           ),
                         ),
+                      )
+                    else
+                      // Not scrollable on its own — it rides the dialog's
+                      // single scroll instead of trapping drags in a
+                      // separate inner list.
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        itemCount: items.length,
+                        separatorBuilder: (BuildContext context, int index) =>
+                            Divider(height: 1, color: AppColors.divider),
+                        itemBuilder: (BuildContext context, int index) {
+                          final CartItem item = items[index];
+
+                          return CartItemTile(
+                            item: item,
+                            onIncrement: () =>
+                                widget.cart.increment(item.product),
+                            onDecrement: () =>
+                                widget.cart.decrement(item.product),
+                            onRemove: () => widget.cart.remove(item.product),
+                          );
+                        },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    child: items.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Text(
-                              AppStrings.cartEmpty,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.onSurfaceMuted,
+                    _DashedDivider(color: AppColors.divider),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          AppStrings.cartTotal,
+                          style: TextStyle(
+                            fontSize: 15.6,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.rupiah(widget.cart.total),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.verifyOrderPinLabel,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _pinController,
+                      autofocus: true,
+                      obscureText: true,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      maxLength: EmployeeRepository.pinLength,
+                      style: const TextStyle(fontSize: 22, letterSpacing: 12),
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      onChanged: (_) {
+                        if (_errorText != null) {
+                          setState(() => _errorText = null);
+                        }
+                      },
+                      onSubmitted: (_) => _confirm(),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText: AppStrings.verifyOrderPinHint,
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          letterSpacing: 0,
+                        ),
+                        errorText: _errorText,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: TextButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            child: const Text(AppStrings.cancel),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: items.isEmpty || _isSubmitting
+                                ? null
+                                : _confirm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.onPrimary,
+                              disabledBackgroundColor: AppColors.panelSurface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: items.length,
-                            separatorBuilder:
-                                (BuildContext context, int index) => Divider(
-                                  height: 1,
-                                  color: AppColors.divider,
-                                ),
-                            itemBuilder: (BuildContext context, int index) {
-                              final CartItem item = items[index];
-
-                              return CartItemTile(
-                                item: item,
-                                onIncrement: () =>
-                                    widget.cart.increment(item.product),
-                                onDecrement: () =>
-                                    widget.cart.decrement(item.product),
-                                onRemove: () =>
-                                    widget.cart.remove(item.product),
-                              );
-                            },
+                            child: _isSubmitting
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.onPrimary,
+                                    ),
+                                  )
+                                : const Text(AppStrings.verifyOrderConfirm),
                           ),
-                  ),
-                  _DashedDivider(color: AppColors.divider),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        AppStrings.cartTotal,
-                        style: TextStyle(
-                          fontSize: 15.6,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSurface,
                         ),
-                      ),
-                      Text(
-                        CurrencyFormatter.rupiah(widget.cart.total),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.verifyOrderPinLabel,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _pinController,
-                    autofocus: true,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: EmployeeRepository.pinLength,
-                    style: const TextStyle(fontSize: 22, letterSpacing: 12),
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    onChanged: (_) {
-                      if (_errorText != null) {
-                        setState(() => _errorText = null);
-                      }
-                    },
-                    onSubmitted: (_) => _confirm(),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      hintText: AppStrings.verifyOrderPinHint,
-                      hintStyle: const TextStyle(
-                        fontSize: 13,
-                        letterSpacing: 0,
-                      ),
-                      errorText: _errorText,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextButton(
-                          onPressed: _isSubmitting
-                              ? null
-                              : () => Navigator.of(context).pop(),
-                          child: const Text(AppStrings.cancel),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed:
-                              items.isEmpty || _isSubmitting ? null : _confirm,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPanel,
-                            disabledBackgroundColor: AppColors.panelSurface,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.onPanel,
-                                  ),
-                                )
-                              : const Text(AppStrings.verifyOrderConfirm),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               );
             },
           ),

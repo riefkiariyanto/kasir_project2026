@@ -3,30 +3,27 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/app_routes.dart';
-import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
-import '../../../cashier/data/category_repository.dart';
 import '../../../cashier/data/employee.dart';
 import '../../../cashier/data/employee_repository.dart';
 import '../../../cashier/data/order.dart';
 import '../../../cashier/data/order_repository.dart';
 import '../../../cashier/presentation/widgets/orders_list.dart';
-import '../../../cashier/presentation/widgets/promo_banner.dart';
 import '../widgets/admin_bottom_nav.dart';
 import '../widgets/admin_drawer.dart';
+import '../widgets/admin_reports_view.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({
     super.key,
-    this.categoryRepository = const CategoryRepository(),
     this.orderRepository = const OrderRepository(),
     this.employeeRepository = const EmployeeRepository(),
   });
 
-  final CategoryRepository categoryRepository;
   final OrderRepository orderRepository;
   final EmployeeRepository employeeRepository;
 
@@ -37,7 +34,7 @@ class AdminDashboardPage extends StatefulWidget {
 enum _OrdersFilterPeriod { all, day, week, month }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  int _navIndex = 0;
+  int _navIndex = AdminBottomNav.dashboardIndex;
   final List<int> _navHistory = <int>[];
   String? _ordersFilterEmployee;
   DateTime? _ordersFilterDate;
@@ -45,22 +42,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   PaymentMethod? _ordersFilterMethod;
   _OrdersFilterPeriod _ordersFilterPeriod = _OrdersFilterPeriod.all;
   bool _ordersGridView = false;
+  bool _ordersSortNewestFirst = true;
   List<Order>? _orders;
   List<Employee>? _employees;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
   Future<void> _load() async {
-    final List<Order> orders = await widget.orderRepository.fetchAll();
-    final List<Employee> employees = await widget.employeeRepository.fetchAll();
+    final List<dynamic> results = await Future.wait(<Future<dynamic>>[
+      widget.orderRepository.fetchAll(),
+      widget.employeeRepository.fetchAll(),
+    ]);
     if (mounted) {
       setState(() {
-        _orders = orders;
-        _employees = employees;
+        _orders = results[0] as List<Order>;
+        _employees = results[1] as List<Employee>;
       });
     }
   }
@@ -70,30 +64,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     if (_navHistory.length > 20) _navHistory.removeAt(0);
   }
 
-  Future<void> _goBack() async {
-    final int target = _navHistory.isNotEmpty ? _navHistory.removeLast() : 0;
+  void _goBack() {
     setState(() {
-      _ordersFilterEmployee = null;
-      _ordersFilterDate = null;
-      _ordersFilterMethod = null;
-      _ordersSearchQuery = '';
-      _ordersFilterPeriod = _OrdersFilterPeriod.all;
+      _resetOrdersFilters();
+      _navIndex = _navHistory.isNotEmpty
+          ? _navHistory.removeLast()
+          : AdminBottomNav.dashboardIndex;
     });
-    if (target == 1) {
-      await _openReports();
-    } else {
-      setState(() => _navIndex = target);
-    }
+    _refreshIfOnTransactions();
   }
 
-  bool _isSameDate(DateTime a, DateTime b) =>
-      AppDateUtils.isSameDate(a, b);
-
-  bool _isSameMonth(DateTime a, DateTime b) =>
-      AppDateUtils.isSameMonth(a, b);
-
-  bool _isSameWeek(DateTime a, DateTime b) =>
-      AppDateUtils.isSameWeek(a, b);
+  /// The dashboard loads its own data, so the history list is only fetched
+  /// when its tab is actually shown — and refreshed on every visit.
+  void _refreshIfOnTransactions() {
+    if (_navIndex == AdminBottomNav.transactionsIndex) {
+      _load();
+    }
+  }
 
   List<Order> get _filteredOrders {
     final String query = _ordersSearchQuery.trim().toLowerCase();
@@ -104,7 +91,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           order.cashierName == _ordersFilterEmployee;
       final bool matchesDate =
           _ordersFilterDate == null ||
-          _isSameDate(order.createdAt, _ordersFilterDate!);
+          AppDateUtils.isSameDate(order.createdAt, _ordersFilterDate!);
       final bool matchesMethod =
           _ordersFilterMethod == null || order.method == _ordersFilterMethod;
       final bool matchesSearch =
@@ -117,13 +104,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           matchesPeriod = true;
           break;
         case _OrdersFilterPeriod.day:
-          matchesPeriod = _isSameDate(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameDate(order.createdAt, now);
           break;
         case _OrdersFilterPeriod.week:
-          matchesPeriod = _isSameWeek(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameWeek(order.createdAt, now);
           break;
         case _OrdersFilterPeriod.month:
-          matchesPeriod = _isSameMonth(order.createdAt, now);
+          matchesPeriod = AppDateUtils.isSameMonth(order.createdAt, now);
           break;
       }
 
@@ -132,7 +119,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           matchesMethod &&
           matchesSearch &&
           matchesPeriod;
-    }).toList();
+    }).toList()..sort(
+      (Order a, Order b) => _ordersSortNewestFirst
+          ? b.createdAt.compareTo(a.createdAt)
+          : a.createdAt.compareTo(b.createdAt),
+    );
   }
 
   Future<void> _pickOrdersFilterDate(BuildContext context) async {
@@ -148,72 +139,46 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  String _formatFilterDate(DateTime date) => AppDateUtils.formatDate(date);
-
-  Future<void> _openTransaction() async {
-    final Object? result = await Navigator.of(
-      context,
-    ).pushNamed(AppRoutes.transaction);
-
-    if (result == RouteResults.openOrders && mounted) {
-      setState(() => _navIndex = 3);
-    }
+  void _resetOrdersFilters() {
+    _ordersFilterEmployee = null;
+    _ordersFilterDate = null;
+    _ordersFilterMethod = null;
+    _ordersSearchQuery = '';
+    _ordersFilterPeriod = _OrdersFilterPeriod.all;
+    _ordersSortNewestFirst = true;
   }
 
-  Future<void> _openReports() => _openAdminPage(AppRoutes.adminReports);
-
-  Future<void> _openCatalogFromHome() => _openAdminPage(AppRoutes.adminCatalog);
+  Future<void> _openCatalog() => _openAdminPage(AppRoutes.adminCatalog);
 
   Future<void> _openEmployees() => _openAdminPage(AppRoutes.adminEmployees);
 
+  Future<void> _openSettings() => _openAdminPage(AppRoutes.adminSettings);
+
+  /// Pushed admin pages pop with the navbar index the user tapped there.
   Future<void> _openAdminPage(String route) async {
     final Object? result = await Navigator.of(context).pushNamed(route);
-
     if (result is int && mounted) {
       _onNavSelected(result);
-    } else if (result is Map<String, dynamic> && mounted) {
-      final int targetIndex = (result['index'] as int?) ?? 3;
-      if (targetIndex == 1) {
-        _openReports();
-      } else if (targetIndex == 2) {
-        _openCatalogFromHome();
-      } else if (targetIndex == 3) {
-        setState(() {
-          _pushHistory(1);
-          _navIndex = 3;
-          if (result.containsKey('employee')) {
-            _ordersFilterEmployee = result['employee'] as String?;
-          }
-          if (result.containsKey('date')) {
-            _ordersFilterDate = result['date'] as DateTime?;
-          }
-          if (result.containsKey('method')) {
-            _ordersFilterMethod = result['method'] as PaymentMethod?;
-          }
-        });
-      } else {
-        setState(() {
-          _navIndex = targetIndex;
-          _ordersFilterEmployee = null;
-          _ordersFilterDate = null;
-          _ordersFilterMethod = null;
-          _ordersSearchQuery = '';
-          _ordersFilterPeriod = _OrdersFilterPeriod.all;
-        });
-      }
     }
   }
 
-  void _openOrders() {
+  void _openOrders() => _onNavSelected(AdminBottomNav.transactionsIndex);
+
+  /// Opens the transaction history narrowed to what a dashboard card counted.
+  void _openFilteredOrders({
+    String? employee,
+    DateTime? date,
+    PaymentMethod? method,
+  }) {
     setState(() {
       _pushHistory(_navIndex);
-      _ordersFilterEmployee = null;
-      _ordersFilterDate = null;
-      _ordersFilterMethod = null;
-      _ordersSearchQuery = '';
-      _ordersFilterPeriod = _OrdersFilterPeriod.all;
-      _navIndex = 3;
+      _resetOrdersFilters();
+      _ordersFilterEmployee = employee;
+      _ordersFilterDate = date;
+      _ordersFilterMethod = method;
+      _navIndex = AdminBottomNav.transactionsIndex;
     });
+    _load();
   }
 
   Future<void> _deleteOrder(Order order) async {
@@ -245,12 +210,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _onNavSelected(int index) {
-    if (index == 1) {
-      _openReports();
-      return;
-    }
-    if (index == 2) {
-      _openCatalogFromHome();
+    if (index == AdminBottomNav.catalogIndex) {
+      _openCatalog();
       return;
     }
     if (index == _navIndex) {
@@ -258,30 +219,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
     setState(() {
       _pushHistory(_navIndex);
-      if (_navIndex == 3 && index != 3) {
-        _ordersFilterEmployee = null;
-        _ordersFilterDate = null;
-        _ordersFilterMethod = null;
-        _ordersSearchQuery = '';
-        _ordersFilterPeriod = _OrdersFilterPeriod.all;
+      if (_navIndex == AdminBottomNav.transactionsIndex) {
+        _resetOrdersFilters();
       }
       _navIndex = index;
     });
+    _refreshIfOnTransactions();
   }
 
   Widget _buildBody(BuildContext context) {
-    switch (_navIndex) {
-      case 3:
-        return _buildOrdersTab(context);
-      default:
-        return _AdminHomeTab(
-          onBannerTap: _openTransaction,
-          onDashboardLaporanTap: _openReports,
-          onTransaksiTap: _openOrders,
-          onCatalogTap: _openCatalogFromHome,
-          onDataPegawaiTap: _openEmployees,
-        );
+    if (_navIndex == AdminBottomNav.transactionsIndex) {
+      return _buildOrdersTab(context);
     }
+    return AdminReportsView(onOpenOrders: _openFilteredOrders);
   }
 
   Widget _buildOrdersTab(BuildContext context) {
@@ -306,7 +256,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             orders: _filteredOrders,
                             onDelete: _deleteOrder,
                           )
-                        : OrdersList(orders: _filteredOrders, onDelete: _deleteOrder),
+                        : OrdersList(
+                            orders: _filteredOrders,
+                            onDelete: _deleteOrder,
+                          ),
                   ),
                 ],
               ),
@@ -324,6 +277,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           children: <Widget>[
             Expanded(child: _buildOrdersSearchField()),
             const SizedBox(width: 8),
+            IconButton(
+              onPressed: () => setState(
+                () => _ordersSortNewestFirst = !_ordersSortNewestFirst,
+              ),
+              tooltip: _ordersSortNewestFirst
+                  ? 'Terbaru ke Terlama'
+                  : 'Terlama ke Terbaru',
+              icon: Icon(
+                _ordersSortNewestFirst
+                    ? Icons.arrow_downward
+                    : Icons.arrow_upward,
+                color: AppColors.onSurface,
+              ),
+            ),
             IconButton(
               onPressed: () =>
                   setState(() => _ordersGridView = !_ordersGridView),
@@ -355,16 +322,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           _buildPeriodChip('Bulan Ini', _OrdersFilterPeriod.month),
           const SizedBox(width: 6),
           _buildPeriodChip('Semua', _OrdersFilterPeriod.all),
-            const SizedBox(width: 6),
-            IntrinsicWidth(
-              child: _buildEmployeeDropdown(context),
-            ),
-            const SizedBox(width: 6),
-            IntrinsicWidth(
-              child: _buildMethodDropdown(context),
-            ),
-            const SizedBox(width: 6),
-            _buildOrdersDateFilterChip(context),
+          const SizedBox(width: 6),
+          IntrinsicWidth(child: _buildEmployeeDropdown(context)),
+          const SizedBox(width: 6),
+          IntrinsicWidth(child: _buildMethodDropdown(context)),
+          const SizedBox(width: 6),
+          _buildOrdersDateFilterChip(context),
         ],
       ),
     );
@@ -379,7 +342,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       backgroundColor: AppColors.surface,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+        color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
         fontWeight: FontWeight.w600,
         fontSize: 13,
       ),
@@ -389,17 +352,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             : AppColors.onSurfaceMuted.withValues(alpha: 0.25),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: isSelected ? 2 : 0,
-      shadowColor: AppColors.navShadow,
     );
   }
 
-    Widget _buildMethodDropdown(BuildContext context) {
+  Widget _buildMethodDropdown(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
       ),
       child: DropdownButtonFormField<PaymentMethod?>(
         isExpanded: false,
@@ -444,10 +404,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         .toList();
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.cardShadow,
       ),
       child: DropdownButtonFormField<String?>(
         isExpanded: false,
@@ -470,10 +429,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
         style: TextStyle(fontSize: 15, color: AppColors.onSurface),
         items: <DropdownMenuItem<String?>>[
-          const DropdownMenuItem<String?>(
-            value: null,
-            child: Text('Pegawai'),
-          ),
+          const DropdownMenuItem<String?>(value: null, child: Text('Pegawai')),
           for (final String name in employeeNames)
             DropdownMenuItem<String?>(value: name, child: Text(name)),
         ],
@@ -483,10 +439,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildOrdersSearchField() {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+      decoration: ClayDecoration(
+        color: AppColors.panelSurface,
+        sunken: true,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         onChanged: (String value) => setState(() => _ordersSearchQuery = value),
@@ -498,7 +454,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
           suffixIcon: _ordersSearchQuery.isNotEmpty
@@ -516,16 +472,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final DateTime? date = _ordersFilterDate;
     final String label = date == null
         ? 'Semua Tanggal'
-        : _formatFilterDate(date);
+        : AppDateUtils.formatDate(date);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Container(
-          decoration: BoxDecoration(
+          decoration: ClayDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: AppColors.cardShadow,
           ),
           child: Material(
             color: Colors.transparent,
@@ -534,7 +489,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onTap: () => _pickOrdersFilterDate(context),
               borderRadius: BorderRadius.circular(20),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -579,22 +537,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       extendBody: true,
       drawer: AdminDrawer(
-        onOpenTransaction: _openTransaction,
+        onOpenDashboard: () => _onNavSelected(AdminBottomNav.dashboardIndex),
+        onOpenCatalog: _openCatalog,
         onOpenOrders: _openOrders,
+        onOpenEmployees: _openEmployees,
+        onOpenSettings: _openSettings,
       ),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
         leading: Builder(
           builder: (BuildContext context) => Padding(
             padding: const EdgeInsets.only(left: 10),
-            child: _navIndex != 0
+            child: _navIndex != AdminBottomNav.dashboardIndex
                 ? IconButton(
                     onPressed: _goBack,
                     tooltip: AppStrings.back,
@@ -608,9 +569,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
         title: BrandTitle(
-          text: _navIndex == 3 ? AppStrings.adminTransactions : null,
+          text: _navIndex == AdminBottomNav.transactionsIndex
+              ? AppStrings.adminTransactions
+              : AppStrings.brandName,
         ),
         actions: <Widget>[
+          if (_navIndex == AdminBottomNav.dashboardIndex)
+            IconButton(
+              onPressed: _openEmployees,
+              tooltip: AppStrings.adminEmployees,
+              icon: const Icon(Icons.people_outline),
+            ),
           const ThemeToggleButton(),
         ],
       ),
@@ -621,166 +590,4 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
   }
-}
-
-class _AdminHomeTab extends StatelessWidget {
-  const _AdminHomeTab({
-    required this.onBannerTap,
-    required this.onDashboardLaporanTap,
-    required this.onTransaksiTap,
-    required this.onCatalogTap,
-    required this.onDataPegawaiTap,
-  });
-
-  static const double _maxContentWidth = 1080;
-
-  final VoidCallback onBannerTap;
-  final VoidCallback onDashboardLaporanTap;
-  final VoidCallback onTransaksiTap;
-  final VoidCallback onCatalogTap;
-  final VoidCallback onDataPegawaiTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-          children: <Widget>[
-            PromoBanner(onTap: onBannerTap),
-            const SizedBox(height: 20),
-            Text(
-              'Menu Admin',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _AdminQuickMenuGrid(
-              onDashboardLaporanTap: onDashboardLaporanTap,
-              onTransaksiTap: onTransaksiTap,
-              onCatalogTap: onCatalogTap,
-              onDataPegawaiTap: onDataPegawaiTap,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AdminQuickMenuGrid extends StatelessWidget {
-  const _AdminQuickMenuGrid({
-    required this.onDashboardLaporanTap,
-    required this.onTransaksiTap,
-    required this.onCatalogTap,
-    required this.onDataPegawaiTap,
-  });
-
-  final VoidCallback onDashboardLaporanTap;
-  final VoidCallback onTransaksiTap;
-  final VoidCallback onCatalogTap;
-  final VoidCallback onDataPegawaiTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<_AdminMenuItem> items = <_AdminMenuItem>[
-      _AdminMenuItem(
-        icon: Icons.dashboard_outlined,
-        label: AppStrings.adminDashboardReport,
-        onTap: onDashboardLaporanTap,
-      ),
-      _AdminMenuItem(
-        icon: Icons.receipt_long_outlined,
-        label: AppStrings.adminTransactions,
-        onTap: onTransaksiTap,
-      ),
-      _AdminMenuItem(
-        icon: Icons.inventory_2_outlined,
-        label: AppStrings.adminProducts,
-        onTap: onCatalogTap,
-      ),
-      _AdminMenuItem(
-        icon: Icons.people_outline,
-        label: AppStrings.adminEmployees,
-        onTap: onDataPegawaiTap,
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 168,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0,
-      ),
-      itemBuilder: (BuildContext context, int index) {
-        final _AdminMenuItem item = items[index];
-        return Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.surface,
-                  AppColors.surface.withValues(alpha: 0.94),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: AppColors.cardShadow,
-            ),
-            child: InkWell(
-              onTap: item.onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(item.icon, size: 36, color: AppColors.primary),
-                    const SizedBox(height: 10),
-                    Text(
-                      item.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.6,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-
-class _AdminMenuItem {
-  const _AdminMenuItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 }

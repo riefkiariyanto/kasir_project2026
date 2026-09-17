@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/finance_entry.dart';
 import '../../data/finance_repository.dart';
@@ -28,7 +29,8 @@ class _FinanceTabState extends State<FinanceTab> {
   }
 
   Future<void> _load() async {
-    final List<FinanceEntry> entries = await widget.financeRepository.fetchAll();
+    final List<FinanceEntry> entries = await widget.financeRepository
+        .fetchAll();
     if (mounted) {
       setState(() => _entries = entries);
     }
@@ -116,7 +118,7 @@ class _FinanceTabState extends State<FinanceTab> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppColors.divider),
                 ),
                 child: Text(
@@ -129,11 +131,10 @@ class _FinanceTabState extends State<FinanceTab> {
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
+                  decoration: ClayDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.divider),
-                    boxShadow: AppColors.cardShadow,
                   ),
                   child: Row(
                     children: <Widget>[

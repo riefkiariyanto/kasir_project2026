@@ -1,8 +1,6 @@
 abstract final class AppStrings {
   static const String appName = 'Kasir 2026';
-  static const String brandName = 'Nail Art';
-  static const String loginTitle = appName;
-  static const String loginSubtitle = 'Masuk untuk memulai transaksi';
+  static const String brandName = 'Nails by Ara';
   static const String usernameLabel = 'Username';
   static const String passwordLabel = 'Password';
   static const String loginButton = 'Login';
@@ -11,30 +9,22 @@ abstract final class AppStrings {
   static const String orDivider = 'atau';
   static const String employeeButton = 'Masuk sebagai Pegawai';
   static const String logout = 'Keluar';
+  static const String appWatermark = '© 2026 Kasir App';
 
-  static const String adminTitle = 'Dashboard Admin';
   static const String adminProducts = 'Kelola Katalog';
-  static const String adminReports = 'Laporan Penjualan';
   static const String adminEmployees = 'Data Pegawai';
   static const String adminSettings = 'Pengaturan';
-  static const String adminHomeMenu = 'Home';
   static const String adminDashboardReport = 'Dashboard Laporan';
   static const String adminTransactions = 'Riwayat Transaksi';
   static const String adminOrdersNav = 'Riwayat Pemesanan';
 
-  static const String cashierTitle = 'Kasir';
   static const String cashierNewSale = 'Transaksi Baru';
-  static const String cashierHistory = 'Riwayat Hari Ini';
   static const String cashierCategories = 'Kategori';
-  static const String cashierInbox = 'Pesan';
   static const String cashierMenu = 'Menu';
   static const String navHome = 'Beranda';
   static const String navTransactions = 'Transaksi';
   static const String navOrders = 'Pesanan';
   static const String navFinance = 'Keuangan';
-  static const String navLoan = 'Pinjam Uang';
-  static const String navTransfer = 'Setor Tunai';
-  static const String adminGreeting = 'Kelola toko dan pantau penjualan';
   static const String comingSoon = 'Fitur belum tersedia';
   static const String ok = 'OK';
 
@@ -59,28 +49,20 @@ abstract final class AppStrings {
   static const String financeHeader = 'Keuangan';
   static const String financeLoan = 'Pinjam Uang';
   static const String financeTransfer = 'Setor Tunai';
-  static const String financeLoanHint = 'Pinjam tunai — kurangi dari Pendapatan Tunai';
-  static const String financeTransferHint = 'Kurangi Pendapatan QRIS, tambah Pendapatan Tunai';
-  static const String financeEmployee = 'Pegawai';
+  static const String financeLoanHint =
+      'Pinjam tunai — kurangi dari Pendapatan Tunai';
   static const String financeAmount = 'Nominal (Rp)';
-  static const String financeNoteHint = 'Keterangan (opsional)';
   static const String financeSave = 'Simpan';
   static const String financeAmountInvalid = 'Nominal harus > 0';
-  static const String financeEmployeeRequired = 'Pilih pegawai';
-  static const String financeSaved = 'Catatan berhasil disimpan';
   static const String financeEmpty = 'Belum ada catatan kas';
-  static const String financeTotalLoan = 'Total Pinjam Tunai';
-  static const String financeTotalTransfer = 'Total Setor Tunai';
   static const String financeLoanOf = 'Pinjam';
   static const String financeTransferOf = 'Setor';
 
-  static const String ordersHeader = 'Riwayat Pesanan';
   static const String ordersEmpty = 'Belum ada pesanan';
   static const String ordersEmptyHint =
       'Pesanan yang selesai akan muncul di sini';
   static const String orderDetailTitle = 'Detail Pesanan';
   static const String orderDetailTime = 'Waktu';
-  static const String orderDetailMethod = 'Metode Pembayaran';
   static const String orderDetailCashier = 'Kasir';
   static const String close = 'Tutup';
 

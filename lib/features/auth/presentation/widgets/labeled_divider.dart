@@ -11,18 +11,15 @@ class LabeledDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        const Expanded(child: Divider(color: AppColors.fieldBorder)),
+        Expanded(child: Divider(color: AppColors.divider)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.onPanelSubtle,
-            ),
+            style: TextStyle(fontSize: 13, color: AppColors.onSurfaceMuted),
           ),
         ),
-        const Expanded(child: Divider(color: AppColors.fieldBorder)),
+        Expanded(child: Divider(color: AppColors.divider)),
       ],
     );
   }

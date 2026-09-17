@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/widgets/image_viewer_dialog.dart';
+import '../../../../core/widgets/product_thumbnail.dart';
 import '../../data/product_repository.dart';
 
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product, required this.onTap});
 
-  static const BorderRadius _radius = BorderRadius.all(Radius.circular(12));
+  static const BorderRadius _radius = BorderRadius.all(Radius.circular(20));
 
   final Product product;
   final VoidCallback onTap;
 
+  bool get _hasImage =>
+      product.imageAsset != null && product.imageAsset!.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: _radius,
-        boxShadow: AppColors.cardShadow,
       ),
       child: Material(
         color: Colors.transparent,
@@ -33,27 +38,26 @@ class ProductTile extends StatelessWidget {
                 child: Stack(
                   children: <Widget>[
                     Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: <Color>[
-                              const Color(0xFFEDEDED),
-                              AppColors.placeholder,
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            color: AppColors.onSurface,
-                          ),
-                        ),
-                      ),
+                      child: _hasImage
+                          ? GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => ImageViewerDialog.show(
+                                context,
+                                imageUrl: product.imageAsset,
+                              ),
+                              child: ProductThumbnail(
+                                imageAsset: product.imageAsset,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                              ),
+                            )
+                          : ProductThumbnail(
+                              imageAsset: product.imageAsset,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
                     ),
                     if (product.tag != null)
                       Positioned(
@@ -85,6 +89,27 @@ class ProductTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Material(
+                        color: AppColors.primary,
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onTap,
+                          child: Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.shopping_cart_outlined,
+                              color: AppColors.onPrimary,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

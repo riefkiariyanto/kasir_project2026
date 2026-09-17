@@ -10,10 +10,12 @@ class CashierDrawer extends StatelessWidget {
     super.key,
     required this.onNewSale,
     required this.onOpenOrders,
+    required this.onOpenSettings,
   });
 
   final VoidCallback onNewSale;
   final VoidCallback onOpenOrders;
+  final VoidCallback onOpenSettings;
 
   void _logout(BuildContext context) {
     Navigator.of(
@@ -56,6 +58,14 @@ class CashierDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 onOpenOrders();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text(AppStrings.adminSettings),
+              onTap: () {
+                Navigator.of(context).pop();
+                onOpenSettings();
               },
             ),
             const Spacer(),

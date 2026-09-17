@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
@@ -59,9 +60,8 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
   Future<void> _openEditor({Employee? employee}) async {
     final _EmployeeFormResult? result = await showDialog<_EmployeeFormResult>(
       context: context,
-      builder: (BuildContext context) => _EmployeeEditorDialog(
-        employee: employee,
-      ),
+      builder: (BuildContext context) =>
+          _EmployeeEditorDialog(employee: employee),
     );
 
     if (result == null || !mounted) {
@@ -137,10 +137,10 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
@@ -150,14 +150,12 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
           icon: const Icon(Icons.arrow_back),
         ),
         title: BrandTitle(text: AppStrings.employeesTitle),
-        actions: <Widget>[
-          const ThemeToggleButton(),
-        ],
+        actions: <Widget>[const ThemeToggleButton()],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openEditor(),
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.onPanel),
+        child: Icon(Icons.add, color: AppColors.onPrimary),
       ),
       bottomNavigationBar: AdminBottomNav(
         currentIndex: -1,
@@ -185,10 +183,9 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
 
   Widget _buildSearchField() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         onChanged: (String value) => setState(() => _searchQuery = value),
@@ -200,7 +197,7 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
           suffixIcon: _searchQuery.isNotEmpty
@@ -233,10 +230,9 @@ class _AdminEmployeesPageState extends State<AdminEmployeesPage> {
               final Employee employee = employees[index];
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
+                decoration: ClayDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: AppColors.cardShadow,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -369,7 +365,7 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -386,7 +382,7 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),
@@ -412,7 +408,7 @@ class _EmployeeEditorDialogState extends State<_EmployeeEditorDialog> {
               filled: true,
               fillColor: AppColors.panelSurface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
             ),

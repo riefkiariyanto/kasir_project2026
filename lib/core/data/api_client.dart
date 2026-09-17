@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -14,7 +16,8 @@ class ApiException implements Exception {
 class ApiClient {
   const ApiClient();
 
-  static const String baseUrl = 'https://backend-production-b58c.up.railway.app';
+  static const String baseUrl =
+      'https://backend-production-b58c.up.railway.app';
 
   static String? _sessionCookie;
   static String? _sessionToken;
@@ -37,8 +40,8 @@ class ApiClient {
 
   static Map<String, String> get _headers => <String, String>{
     'Content-Type': 'application/json',
-    if (_sessionCookie != null) 'Cookie': _sessionCookie!,
-    if (_sessionToken != null) 'X-Session-Token': _sessionToken!,
+    'Cookie': ?_sessionCookie,
+    'X-Session-Token': ?_sessionToken,
   };
 
   dynamic _decode(http.Response response) {
@@ -97,7 +100,8 @@ class ApiClient {
     String path,
     Map<String, String> fields, {
     String? fileField,
-    String? filePath,
+    Uint8List? fileBytes,
+    String? fileName,
     String method = 'POST',
   }) async {
     final http.MultipartRequest request = http.MultipartRequest(
@@ -111,8 +115,14 @@ class ApiClient {
       request.headers['X-Session-Token'] = _sessionToken!;
     }
     request.fields.addAll(fields);
-    if (fileField != null && filePath != null) {
-      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    if (fileField != null && fileBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fileField,
+          fileBytes,
+          filename: fileName ?? 'upload.jpg',
+        ),
+      );
     }
     final http.StreamedResponse streamed = await request.send();
     final http.Response response = await http.Response.fromStream(streamed);

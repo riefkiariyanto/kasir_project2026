@@ -22,18 +22,23 @@ class OrderRepository {
     required PaymentMethod method,
     required String cashierPin,
   }) async {
-    final dynamic data = await api.post('/api/orders/checkout', <String, dynamic>{
-      'items': items
-          .map((CartItem item) => <String, dynamic>{
+    final dynamic data = await api.post(
+      '/api/orders/checkout',
+      <String, dynamic>{
+        'items': items
+            .map(
+              (CartItem item) => <String, dynamic>{
                 'productId': item.product.id,
                 'productName': item.product.name,
                 'price': item.product.price,
                 'quantity': item.quantity,
-              })
-          .toList(),
-      'method': method == PaymentMethod.cash ? 'cash' : 'qris',
-      'cashierPin': cashierPin,
-    });
+              },
+            )
+            .toList(),
+        'method': method == PaymentMethod.cash ? 'cash' : 'qris',
+        'cashierPin': cashierPin,
+      },
+    );
     return Order.fromJson(data as Map<String, dynamic>);
   }
 

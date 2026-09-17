@@ -8,12 +8,18 @@ import '../../../../core/widgets/brand_title.dart';
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({
     super.key,
-    required this.onOpenTransaction,
+    required this.onOpenDashboard,
+    required this.onOpenCatalog,
     required this.onOpenOrders,
+    required this.onOpenEmployees,
+    required this.onOpenSettings,
   });
 
-  final VoidCallback onOpenTransaction;
+  final VoidCallback onOpenDashboard;
+  final VoidCallback onOpenCatalog;
   final VoidCallback onOpenOrders;
+  final VoidCallback onOpenEmployees;
+  final VoidCallback onOpenSettings;
 
   void _logout(BuildContext context) {
     Navigator.of(
@@ -47,7 +53,7 @@ class AdminDrawer extends StatelessWidget {
               title: const Text(AppStrings.adminDashboardReport),
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(AppRoutes.adminReports);
+                onOpenDashboard();
               },
             ),
             ListTile(
@@ -55,7 +61,7 @@ class AdminDrawer extends StatelessWidget {
               title: const Text(AppStrings.adminProducts),
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(AppRoutes.adminCatalog);
+                onOpenCatalog();
               },
             ),
             ListTile(
@@ -71,7 +77,7 @@ class AdminDrawer extends StatelessWidget {
               title: const Text(AppStrings.adminEmployees),
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(AppRoutes.adminEmployees);
+                onOpenEmployees();
               },
             ),
             ListTile(
@@ -79,7 +85,7 @@ class AdminDrawer extends StatelessWidget {
               title: const Text(AppStrings.adminSettings),
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(AppRoutes.adminSettings);
+                onOpenSettings();
               },
             ),
             const Spacer(),

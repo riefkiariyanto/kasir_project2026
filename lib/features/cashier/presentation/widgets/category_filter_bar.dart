@@ -38,7 +38,7 @@ class CategoryFilterBar extends StatelessWidget {
             backgroundColor: AppColors.surface,
             selectedColor: AppColors.primary,
             labelStyle: TextStyle(
-              color: isSelected ? AppColors.onPanel : AppColors.onSurface,
+              color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),

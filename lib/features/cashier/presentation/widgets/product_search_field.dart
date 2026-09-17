@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 
 class ProductSearchField extends StatelessWidget {
   const ProductSearchField({super.key, required this.onChanged});
@@ -11,10 +12,10 @@ class ProductSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+      decoration: ClayDecoration(
+        color: AppColors.panelSurface,
+        sunken: true,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         onChanged: onChanged,
@@ -25,7 +26,7 @@ class ProductSearchField extends StatelessWidget {
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             borderSide: BorderSide.none,
           ),
         ),

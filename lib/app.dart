@@ -8,11 +8,10 @@ import 'core/theme/app_theme.dart';
 import 'features/admin/presentation/pages/admin_catalog_page.dart';
 import 'features/admin/presentation/pages/admin_dashboard_page.dart';
 import 'features/admin/presentation/pages/admin_employees_page.dart';
-import 'features/admin/presentation/pages/admin_reports_page.dart';
 import 'features/admin/presentation/pages/admin_settings_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/cashier/presentation/pages/cashier_page.dart';
-import 'features/cashier/presentation/pages/transaction_page.dart';
+import 'features/splash/presentation/pages/splash_page.dart';
 
 class KasirApp extends StatefulWidget {
   const KasirApp({super.key});
@@ -37,16 +36,15 @@ class _KasirAppState extends State<KasirApp> {
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
           theme: isDark ? AppTheme.dark : AppTheme.light,
-          initialRoute: AppRoutes.login,
+          initialRoute: AppRoutes.splash,
           routes: <String, WidgetBuilder>{
+            AppRoutes.splash: (_) => const SplashPage(),
             AppRoutes.login: (_) => const LoginPage(),
             AppRoutes.admin: (_) => const AdminDashboardPage(),
             AppRoutes.adminCatalog: (_) => const AdminCatalogPage(),
-            AppRoutes.adminReports: (_) => const AdminReportsPage(),
             AppRoutes.adminEmployees: (_) => const AdminEmployeesPage(),
             AppRoutes.adminSettings: (_) => const AdminSettingsPage(),
             AppRoutes.cashier: (_) => const CashierPage(),
-            AppRoutes.transaction: (_) => const TransactionPage(),
           },
         );
       },

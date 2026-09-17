@@ -5,7 +5,10 @@ class AuthRepository {
 
   final ApiClient api;
 
-  Future<bool> login({required String username, required String password}) async {
+  Future<bool> login({
+    required String username,
+    required String password,
+  }) async {
     try {
       await api.post('/api/auth/login', <String, dynamic>{
         'username': username,

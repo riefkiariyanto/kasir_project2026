@@ -109,7 +109,6 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
         : 'Diambil dari uang tunai kasir, dipindah ke QRIS';
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
         child: Padding(
@@ -174,9 +173,7 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                 controller: _amountController,
                 autofocus: true,
                 keyboardType: TextInputType.number,
-                inputFormatters: <TextInputFormatter>[
-                  RupiahInputFormatter(),
-                ],
+                inputFormatters: <TextInputFormatter>[RupiahInputFormatter()],
                 decoration: InputDecoration(
                   prefixText: 'Rp ',
                   hintText: '0',
@@ -185,7 +182,7 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                   filled: true,
                   fillColor: AppColors.panelSurface,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(color: AppColors.inputBorder),
                   ),
                 ),
@@ -224,7 +221,7 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                   filled: true,
                   fillColor: AppColors.panelSurface,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(color: AppColors.inputBorder),
                   ),
                 ),
@@ -252,19 +249,18 @@ class _FinanceActionDialogState extends State<FinanceActionDialog> {
                       onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.onPanel,
-                        elevation: 0,
+                        foregroundColor: AppColors.onPrimary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: _isSubmitting
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.onPanel,
+                                color: AppColors.onPrimary,
                               ),
                             )
                           : const Text(AppStrings.financeSave),

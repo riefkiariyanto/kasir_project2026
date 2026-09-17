@@ -4,6 +4,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/route_results.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
@@ -17,6 +18,7 @@ import '../widgets/cart_panel.dart';
 import '../widgets/cashier_bottom_nav.dart';
 import '../widgets/category_filter_bar.dart';
 import '../widgets/order_verification_dialog.dart';
+import '../widgets/payment_success_dialog.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/product_search_field.dart';
 
@@ -53,8 +55,8 @@ class _TransactionPageState extends State<TransactionPage> {
   }
 
   Future<void> _load() async {
-    final List<ProductCategory> categories =
-        await widget.categoryRepository.fetchAll();
+    final List<ProductCategory> categories = await widget.categoryRepository
+        .fetchAll();
     final List<Product> products = await widget.productRepository.fetchAll(
       categories,
     );
@@ -63,11 +65,10 @@ class _TransactionPageState extends State<TransactionPage> {
     }
   }
 
-  List<String> get _categories =>
-      (_products ?? const <Product>[])
-          .map((Product p) => p.category)
-          .toSet()
-          .toList();
+  List<String> get _categories => (_products ?? const <Product>[])
+      .map((Product p) => p.category)
+      .toSet()
+      .toList();
 
   List<Product> get _filteredProducts {
     return (_products ?? const <Product>[]).where((Product product) {
@@ -106,11 +107,7 @@ class _TransactionPageState extends State<TransactionPage> {
       _paymentMethod = null;
     });
 
-    showAppDialog(
-      context,
-      title: AppStrings.paymentSuccess,
-      message: method.label,
-    );
+    await PaymentSuccessDialog.show(context, order: order);
   }
 
   void _onNavSelected(int index) {
@@ -144,18 +141,16 @@ class _TransactionPageState extends State<TransactionPage> {
 
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       extendBody: true,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.onSurface, size: 28),
         title: BrandTitle(text: AppStrings.navTransactions),
-        actions: <Widget>[
-          const ThemeToggleButton(),
-        ],
+        actions: <Widget>[const ThemeToggleButton()],
       ),
       bottomNavigationBar: CashierBottomNav(
         currentIndex: 1,
@@ -164,64 +159,65 @@ class _TransactionPageState extends State<TransactionPage> {
       body: _products == null
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool isWide = constraints.maxWidth >= 700;
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool isWide = constraints.maxWidth >= 700;
 
-          final Widget catalog = _ProductCatalog(
-            categories: _categories,
-            selectedCategory: _selectedCategory,
-            onCategorySelected: (String? category) =>
-                setState(() => _selectedCategory = category),
-            onQueryChanged: (String value) => setState(() => _query = value),
-            products: _filteredProducts,
-            onProductTap: (Product product) =>
-                setState(() => _cart.add(product)),
-          );
+                final Widget catalog = _ProductCatalog(
+                  categories: _categories,
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: (String? category) =>
+                      setState(() => _selectedCategory = category),
+                  onQueryChanged: (String value) =>
+                      setState(() => _query = value),
+                  products: _filteredProducts,
+                  onProductTap: (Product product) =>
+                      setState(() => _cart.add(product)),
+                );
 
-          final Widget cart = ListenableBuilder(
-            listenable: _cart,
-            builder: (BuildContext context, _) => CartPanel(
-              items: _cart.items,
-              total: _cart.total,
-              onIncrement: (CartItem item) =>
-                  setState(() => _cart.increment(item.product)),
-              onDecrement: (CartItem item) =>
-                  setState(() => _cart.decrement(item.product)),
-              onRemove: (CartItem item) =>
-                  setState(() => _cart.remove(item.product)),
-              selectedMethod: _paymentMethod,
-              onMethodSelected: (PaymentMethod method) =>
-                  setState(() => _paymentMethod = method),
-              onCheckout: _checkout,
+                final Widget cart = ListenableBuilder(
+                  listenable: _cart,
+                  builder: (BuildContext context, _) => CartPanel(
+                    items: _cart.items,
+                    total: _cart.total,
+                    onIncrement: (CartItem item) =>
+                        setState(() => _cart.increment(item.product)),
+                    onDecrement: (CartItem item) =>
+                        setState(() => _cart.decrement(item.product)),
+                    onRemove: (CartItem item) =>
+                        setState(() => _cart.remove(item.product)),
+                    selectedMethod: _paymentMethod,
+                    onMethodSelected: (PaymentMethod method) =>
+                        setState(() => _paymentMethod = method),
+                    onCheckout: _checkout,
+                  ),
+                );
+
+                if (isWide) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Expanded(flex: 5, child: catalog),
+                        const SizedBox(width: 16),
+                        Expanded(flex: 2, child: cart),
+                      ],
+                    ),
+                  );
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: <Widget>[
+                      Expanded(flex: 4, child: catalog),
+                      const SizedBox(height: 16),
+                      Expanded(flex: 2, child: cart),
+                    ],
+                  ),
+                );
+              },
             ),
-          );
-
-          if (isWide) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Expanded(flex: 5, child: catalog),
-                  const SizedBox(width: 16),
-                  Expanded(flex: 2, child: cart),
-                ],
-              ),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: <Widget>[
-                Expanded(flex: 4, child: catalog),
-                const SizedBox(height: 16),
-                Expanded(flex: 2, child: cart),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }
@@ -247,10 +243,9 @@ class _ProductCatalog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+      decoration: ClayDecoration(
         color: AppColors.panelSurface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

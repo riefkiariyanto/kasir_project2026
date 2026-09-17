@@ -1,9 +1,5 @@
 class Employee {
-  const Employee({
-    required this.id,
-    required this.name,
-    this.phone,
-  });
+  const Employee({required this.id, required this.name, this.phone});
 
   final String id;
   final String name;

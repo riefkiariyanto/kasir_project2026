@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/data/api_client.dart';
 import 'category_repository.dart';
 
@@ -27,7 +29,10 @@ class Product {
     final String? categoryId = json['category_id'] as String?;
     final ProductCategory? matched = categories
         .cast<ProductCategory?>()
-        .firstWhere((ProductCategory? c) => c?.id == categoryId, orElse: () => null);
+        .firstWhere(
+          (ProductCategory? c) => c?.id == categoryId,
+          orElse: () => null,
+        );
     final String? imagePath = json['image_path'] as String?;
     return Product(
       id: json['id'] as String,
@@ -36,7 +41,9 @@ class Product {
       category: matched?.name ?? '',
       categoryId: categoryId,
       tag: json['tag'] as String?,
-      imageAsset: imagePath == null ? null : '${ApiClient.baseUrl}/uploads/$imagePath',
+      imageAsset: imagePath == null
+          ? null
+          : '${ApiClient.baseUrl}/uploads/$imagePath',
     );
   }
 
@@ -69,7 +76,10 @@ class ProductRepository {
   Future<List<Product>> fetchAll(List<ProductCategory> categories) async {
     final List<dynamic> data = await api.get('/api/products') as List<dynamic>;
     return data
-        .map((dynamic e) => Product.fromJson(e as Map<String, dynamic>, categories))
+        .map(
+          (dynamic e) =>
+              Product.fromJson(e as Map<String, dynamic>, categories),
+        )
         .toList();
   }
 
@@ -78,7 +88,7 @@ class ProductRepository {
     required int price,
     required String categoryId,
     String? tag,
-    String? imagePath,
+    Uint8List? imageBytes,
   }) async {
     await api.postMultipart(
       '/api/products',
@@ -86,10 +96,10 @@ class ProductRepository {
         'name': name,
         'price': price.toString(),
         'categoryId': categoryId,
-        if (tag != null) 'tag': tag,
+        'tag': ?tag,
       },
-      fileField: imagePath == null ? null : 'image',
-      filePath: imagePath,
+      fileField: imageBytes == null ? null : 'image',
+      fileBytes: imageBytes,
     );
   }
 
@@ -99,7 +109,7 @@ class ProductRepository {
     required int price,
     required String categoryId,
     String? tag,
-    String? imagePath,
+    Uint8List? imageBytes,
   }) async {
     await api.postMultipart(
       '/api/products/$id',
@@ -107,10 +117,10 @@ class ProductRepository {
         'name': name,
         'price': price.toString(),
         'categoryId': categoryId,
-        if (tag != null) 'tag': tag,
+        'tag': ?tag,
       },
-      fileField: imagePath == null ? null : 'image',
-      filePath: imagePath,
+      fileField: imageBytes == null ? null : 'image',
+      fileBytes: imageBytes,
       method: 'PUT',
     );
   }

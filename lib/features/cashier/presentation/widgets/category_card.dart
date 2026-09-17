@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/clay_decoration.dart';
 import '../../data/category_repository.dart';
 
 class CategoryCard extends StatelessWidget {
   const CategoryCard({super.key, required this.category, required this.onTap});
 
-  static const BorderRadius _radius = BorderRadius.all(Radius.circular(12));
+  static const BorderRadius _radius = BorderRadius.all(Radius.circular(20));
 
   final ProductCategory category;
   final VoidCallback onTap;
@@ -14,15 +15,7 @@ class CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: _radius,
-        boxShadow: AppColors.cardShadow,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[const Color(0xFFEDEDED), AppColors.placeholder],
-        ),
-      ),
+      decoration: ClayDecoration(borderRadius: _radius),
       child: Material(
         color: Colors.transparent,
         borderRadius: _radius,

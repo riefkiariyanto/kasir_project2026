@@ -45,7 +45,7 @@ class _MethodButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(8);
+    final BorderRadius radius = BorderRadius.circular(12);
 
     return Material(
       color: selected ? AppColors.primary : AppColors.surface,
@@ -67,7 +67,9 @@ class _MethodButton extends StatelessWidget {
               Icon(
                 method.icon,
                 size: 16.5,
-                color: selected ? AppColors.onPanel : AppColors.onSurfaceMuted,
+                color: selected
+                    ? AppColors.onPrimary
+                    : AppColors.onSurfaceMuted,
               ),
               const SizedBox(width: 5),
               Flexible(
@@ -78,7 +80,7 @@ class _MethodButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13.8,
                     fontWeight: FontWeight.w600,
-                    color: selected ? AppColors.onPanel : AppColors.onSurface,
+                    color: selected ? AppColors.onPrimary : AppColors.onSurface,
                   ),
                 ),
               ),
