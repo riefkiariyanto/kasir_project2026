@@ -393,7 +393,6 @@ class _AdminCatalogPageState extends State<AdminCatalogPage> {
           decoration: ClayDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.divider),
           ),
           child: Material(
             color: Colors.transparent,
@@ -985,7 +984,8 @@ class _ProductEditorPanelState extends State<_ProductEditorPanel> {
       child: Container(
         height: 140,
         clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
+        decoration: ClayDecoration(
+          sunken: true,
           color: AppColors.panelSurface,
           borderRadius: BorderRadius.circular(20),
         ),

@@ -103,4 +103,14 @@ abstract final class AppStrings {
   static const String passwordTooShort = 'Password minimal 4 karakter';
   static const String passwordChanged = 'Password berhasil diubah';
   static const String save = 'Simpan';
+
+  static const String orderDeleteFailed = 'Gagal Menghapus Transaksi';
+  static const String transactionSectionTitle = 'Transaksi';
+  static const String bulkDeleteTitle = 'Hapus Transaksi Massal';
+  static const String bulkDeleteHint =
+      'Hapus semua transaksi dalam rentang tanggal. Tidak bisa dibatalkan.';
+  static const String bulkDeletePickRange = 'Pilih rentang tanggal';
+  static const String bulkDeletePasswordLabel = 'Password Admin';
+  static const String bulkDeleteConfirm = 'Hapus';
+  static const String bulkDeleteNone = 'Tidak ada transaksi pada rentang ini';
 }

@@ -9,6 +9,7 @@ import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../widgets/admin_bottom_nav.dart';
+import '../widgets/bulk_delete_orders_dialog.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../cashier/data/category_repository.dart';
 
@@ -261,6 +262,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 const SizedBox(height: 28),
                 const PrinterSettingsTile(),
                 const SizedBox(height: 28),
+                _buildTransactionSection(),
+                const SizedBox(height: 28),
                 _buildAccountSection(),
               ],
             ),
@@ -453,6 +456,62 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openBulkDelete() async {
+    final int? deleted = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) => const BulkDeleteOrdersDialog(),
+    );
+    if (deleted != null && mounted) {
+      showAppDialog(
+        context,
+        title: AppStrings.bulkDeleteTitle,
+        message: deleted == 0
+            ? AppStrings.bulkDeleteNone
+            : '$deleted transaksi berhasil dihapus',
+      );
+    }
+  }
+
+  Widget _buildTransactionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          AppStrings.transactionSectionTitle,
+          style: TextStyle(
+            fontSize: 14.4,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurfaceMuted,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          decoration: ClayDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ListTile(
+            onTap: _openBulkDelete,
+            leading: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
+            title: Text(
+              AppStrings.bulkDeleteTitle,
+              style: TextStyle(
+                fontSize: 15.6,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
+            ),
+            trailing: Icon(
+              Icons.chevron_right,
+              color: AppColors.onSurfaceMuted,
+            ),
+          ),
         ),
       ],
     );

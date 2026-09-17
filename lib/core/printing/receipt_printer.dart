@@ -173,7 +173,7 @@ class ReceiptPrinter {
     }
 
     bytes += generator.hr();
-    bytes += _twoColumns(generator, 'No', order.id);
+    bytes += _twoColumns(generator, 'No', order.invoiceNo);
     bytes += _twoColumns(
       generator,
       'Tanggal',

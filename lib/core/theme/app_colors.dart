@@ -72,10 +72,10 @@ class ClayPalette {
     navBar: Color(0xFFFFF4F9),
     navSelected: Color(0xFFD6408F),
     navUnselected: Color(0xFF8C6379),
-    dropShadow: Color(0x1F4A1D38),
-    contactShadow: Color(0x144A1D38),
-    innerHighlight: Color(0xCCFFFFFF),
-    innerShade: Color(0x0F4A1D38),
+    dropShadow: Color(0x2B4A1D38),
+    contactShadow: Color(0x1F4A1D38),
+    innerHighlight: Color(0xE6FFFFFF),
+    innerShade: Color(0x1C4A1D38),
   );
 
   static const ClayPalette dark = ClayPalette(
@@ -92,15 +92,15 @@ class ClayPalette {
     navBar: Color(0xFF2A1F27),
     navSelected: Color(0xFFF58CC4),
     navUnselected: Color(0xFFC1A0B2),
-    dropShadow: Color(0x73000000),
-    contactShadow: Color(0x4D000000),
-    innerHighlight: Color(0x14FFFFFF),
-    innerShade: Color(0x33000000),
+    dropShadow: Color(0x8C000000),
+    contactShadow: Color(0x59000000),
+    innerHighlight: Color(0x1FFFFFFF),
+    innerShade: Color(0x40000000),
   );
 
   List<BoxShadow> get raisedShadows => <BoxShadow>[
-    BoxShadow(color: dropShadow, blurRadius: 16, offset: const Offset(0, 6)),
-    BoxShadow(color: contactShadow, blurRadius: 3, offset: const Offset(0, 1)),
+    BoxShadow(color: dropShadow, blurRadius: 20, offset: const Offset(0, 8)),
+    BoxShadow(color: contactShadow, blurRadius: 4, offset: const Offset(0, 2)),
   ];
 }
 

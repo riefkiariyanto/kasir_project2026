@@ -5,6 +5,7 @@ import 'product_repository.dart';
 class Order {
   const Order({
     required this.id,
+    required this.invoiceNo,
     required this.items,
     required this.total,
     required this.method,
@@ -12,7 +13,11 @@ class Order {
     required this.cashierName,
   });
 
+  /// Database id, used for API calls.
   final String id;
+
+  /// Human-facing number (INV-001) shown on screen and receipts.
+  final String invoiceNo;
   final List<CartItem> items;
   final int total;
   final PaymentMethod method;
@@ -26,7 +31,8 @@ class Order {
     final List<dynamic> rawItems =
         json['items'] as List<dynamic>? ?? <dynamic>[];
     return Order(
-      id: json['invoice_no'] as String? ?? json['id'] as String,
+      id: json['id'] as String,
+      invoiceNo: json['invoice_no'] as String,
       items: rawItems.map((dynamic e) {
         final Map<String, dynamic> item = e as Map<String, dynamic>;
         return CartItem(

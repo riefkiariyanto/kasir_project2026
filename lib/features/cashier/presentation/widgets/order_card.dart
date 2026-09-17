@@ -140,7 +140,7 @@ class OrderCard extends StatelessWidget {
       children: <Widget>[
         Flexible(
           child: Text(
-            order.id,
+            order.invoiceNo,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

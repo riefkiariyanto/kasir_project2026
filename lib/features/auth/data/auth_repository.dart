@@ -5,6 +5,8 @@ class AuthRepository {
 
   final ApiClient api;
 
+  /// False for wrong credentials; other failures (server down, no
+  /// network) throw [ApiException] so they aren't reported as a bad password.
   Future<bool> login({
     required String username,
     required String password,
@@ -15,8 +17,11 @@ class AuthRepository {
         'password': password,
       });
       return true;
-    } on ApiException {
-      return false;
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        return false;
+      }
+      rethrow;
     }
   }
 

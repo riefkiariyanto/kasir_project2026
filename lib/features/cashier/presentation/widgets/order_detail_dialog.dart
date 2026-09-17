@@ -74,7 +74,7 @@ class OrderDetailDialog extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          order.id,
+                          order.invoiceNo,
                           style: TextStyle(
                             fontSize: 15.6,
                             fontWeight: FontWeight.w600,

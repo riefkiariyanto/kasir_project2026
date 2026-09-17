@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_dialog.dart';
 import '../../data/auth_repository.dart';
@@ -39,26 +40,30 @@ class _LoginFormState extends State<LoginForm> {
     }
     setState(() => _isLoading = true);
 
-    final bool isValid = await widget.authRepository.login(
-      username: _usernameController.text,
-      password: _passwordController.text,
-    );
+    String? error;
+    try {
+      final bool isValid = await widget.authRepository.login(
+        username: _usernameController.text,
+        password: _passwordController.text,
+      );
+      if (!isValid) {
+        error = AppStrings.loginFailed;
+      }
+    } on ApiException catch (e) {
+      error = e.message;
+    }
 
     if (!mounted) {
       return;
     }
     setState(() => _isLoading = false);
 
-    if (isValid) {
+    if (error == null) {
       widget.onSuccess();
       return;
     }
 
-    showAppDialog(
-      context,
-      title: AppStrings.loginFailedTitle,
-      message: AppStrings.loginFailed,
-    );
+    showAppDialog(context, title: AppStrings.loginFailedTitle, message: error);
   }
 
   @override

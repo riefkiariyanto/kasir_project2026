@@ -45,4 +45,20 @@ class OrderRepository {
   Future<void> remove(String id) async {
     await api.delete('/api/orders/$id');
   }
+
+  /// Deletes every order created on or after [from] and before [to];
+  /// returns how many were deleted.
+  Future<int> removeRange({
+    required DateTime from,
+    required DateTime to,
+    required String password,
+  }) async {
+    final dynamic data = await api
+        .post('/api/orders/bulk-delete', <String, dynamic>{
+          'from': from.toUtc().toIso8601String(),
+          'to': to.toUtc().toIso8601String(),
+          'password': password,
+        });
+    return (data as Map<String, dynamic>)['deleted'] as int;
+  }
 }

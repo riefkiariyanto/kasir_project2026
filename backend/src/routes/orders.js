@@ -6,14 +6,15 @@ const requireAdmin = require('../middleware/requireAdmin');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const { rows: orders } = await pool.query('select * from orders order by created_at desc');
-  const { rows: items } = await pool.query('select * from order_items');
-  const itemsByOrder = new Map();
-  for (const item of items) {
-    if (!itemsByOrder.has(item.order_id)) itemsByOrder.set(item.order_id, []);
-    itemsByOrder.get(item.order_id).push(item);
-  }
-  res.json(orders.map((o) => ({ ...o, items: itemsByOrder.get(o.id) ?? [] })));
+  const { rows } = await pool.query(
+    `select o.*,
+            coalesce(json_agg(oi) filter (where oi.id is not null), '[]') as items
+       from orders o
+       left join order_items oi on oi.order_id = o.id
+      group by o.id
+      order by o.created_at desc`
+  );
+  res.json(rows);
 });
 
 // Checkout: verifikasi PIN pegawai lalu insert orders+order_items dalam satu transaction (atomic)
@@ -61,6 +62,25 @@ router.post('/checkout', async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   await pool.query('delete from orders where id = $1', [req.params.id]);
   res.status(204).end();
+});
+
+// Hapus massal [from, to); password admin diminta ulang karena tidak bisa dibatalkan.
+router.post('/bulk-delete', requireAdmin, async (req, res) => {
+  const { from, to, password } = req.body;
+  if (Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to))) {
+    return res.status(400).json({ error: 'Rentang tanggal tidak valid' });
+  }
+  const { rows } = await pool.query('select password_hash from admins where id = $1', [
+    req.session.adminId,
+  ]);
+  if (!rows[0] || !(await bcrypt.compare(String(password ?? ''), rows[0].password_hash))) {
+    return res.status(401).json({ error: 'Password salah' });
+  }
+  const { rowCount } = await pool.query(
+    'delete from orders where created_at >= $1 and created_at < $2',
+    [from, to]
+  );
+  res.json({ deleted: rowCount });
 });
 
 async function findByPin(employees, pin) {

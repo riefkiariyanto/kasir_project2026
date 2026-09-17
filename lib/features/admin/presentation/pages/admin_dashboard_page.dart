@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/data/api_client.dart';
 import '../../../../core/models/payment_method.dart';
 import '../../../../core/routing/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/clay_decoration.dart';
 import '../../../../core/utils/app_date_utils.dart';
+import '../../../../core/widgets/app_dialog.dart';
 import '../../../../core/widgets/brand_title.dart';
 import '../../../../core/widgets/theme_toggle_button.dart';
 import '../../../cashier/data/employee.dart';
@@ -95,7 +97,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final bool matchesMethod =
           _ordersFilterMethod == null || order.method == _ordersFilterMethod;
       final bool matchesSearch =
-          query.isEmpty || order.id.toLowerCase().contains(query);
+          query.isEmpty || order.invoiceNo.toLowerCase().contains(query);
 
       final DateTime now = DateTime.now();
       bool matchesPeriod = true;
@@ -152,7 +154,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Future<void> _openEmployees() => _openAdminPage(AppRoutes.adminEmployees);
 
-  Future<void> _openSettings() => _openAdminPage(AppRoutes.adminSettings);
+  Future<void> _openSettings() async {
+    await _openAdminPage(AppRoutes.adminSettings);
+    // Settings can bulk-delete orders.
+    if (mounted) {
+      _load();
+    }
+  }
 
   /// Pushed admin pages pop with the navbar index the user tapped there.
   Future<void> _openAdminPage(String route) async {
@@ -186,7 +194,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       context: context,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('Hapus Transaksi?'),
-        content: Text(order.id),
+        content: Text(order.invoiceNo),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -205,7 +213,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return;
     }
 
-    await widget.orderRepository.remove(order.id);
+    try {
+      await widget.orderRepository.remove(order.id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        showAppDialog(
+          context,
+          title: AppStrings.orderDeleteFailed,
+          message: error.message,
+        );
+      }
+      return;
+    }
     await _load();
   }
 

@@ -39,7 +39,7 @@ class PaymentSuccessDialog extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${order.id} · ${order.method.label}',
+            '${order.invoiceNo} · ${order.method.label}',
             style: TextStyle(fontSize: 13, color: AppColors.onSurfaceMuted),
           ),
           const SizedBox(height: 16),

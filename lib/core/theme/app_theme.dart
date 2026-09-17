@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'clay_decoration.dart';
 
 abstract final class AppTheme {
   static const double buttonRadius = 18;
@@ -29,6 +30,17 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.circular(buttonRadius),
     );
 
+    // Solid tint: Material scales shadow opacity itself.
+    final Color shadowTint = p.dropShadow.withAlpha(255);
+    final ButtonStyle raised = ButtonStyle(
+      elevation: WidgetStateProperty.resolveWith(
+        (Set<WidgetState> states) =>
+            states.contains(WidgetState.disabled) ? 0 : 3,
+      ),
+      shadowColor: WidgetStatePropertyAll<Color>(shadowTint),
+      backgroundBuilder: _buttonRim,
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -46,24 +58,23 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: p.primary,
           foregroundColor: p.onPrimary,
-          elevation: 0,
           shape: buttonShape,
-        ),
+        ).merge(raised),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: p.primary,
           foregroundColor: p.onPrimary,
-          elevation: 0,
           shape: buttonShape,
-        ),
+        ).merge(raised),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          backgroundColor: p.surface,
           foregroundColor: p.primary,
-          side: BorderSide(color: p.inputBorder, width: 1.5),
+          side: BorderSide.none,
           shape: buttonShape,
-        ),
+        ).merge(raised),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -90,8 +101,8 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: 6,
-        shadowColor: p.dropShadow,
+        elevation: 8,
+        shadowColor: shadowTint,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(dialogRadius),
         ),
@@ -108,6 +119,17 @@ abstract final class AppTheme {
         selectedColor: p.primary,
         side: BorderSide.none,
         shape: const StadiumBorder(),
+        elevation: 2,
+        pressElevation: 2,
+        shadowColor: shadowTint,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.primary,
+        foregroundColor: p.onPrimary,
+        elevation: 3,
+        focusElevation: 3,
+        hoverElevation: 3,
+        highlightElevation: 3,
       ),
       cardTheme: CardThemeData(
         color: p.surface,
@@ -124,6 +146,8 @@ abstract final class AppTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: p.surface,
         surfaceTintColor: Colors.transparent,
+        elevation: 6,
+        shadowColor: shadowTint,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(fieldRadius),
         ),
@@ -139,6 +163,37 @@ abstract final class AppTheme {
         iconColor: p.primary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
+    );
+  }
+
+  /// Lit top edge and shaded bottom edge, drawn over the button's fill.
+  static Widget _buttonRim(
+    BuildContext context,
+    Set<WidgetState> states,
+    Widget? child,
+  ) {
+    if (states.contains(WidgetState.disabled)) {
+      return child!;
+    }
+    // Softer than on cards: a full-strength white rim on a coloured
+    // button reads as glow.
+    return Stack(
+      fit: StackFit.passthrough,
+      children: <Widget>[
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.45,
+            child: DecoratedBox(
+              decoration: ClayDecoration(
+                color: Colors.transparent,
+                shadow: false,
+                borderRadius: BorderRadius.circular(buttonRadius),
+              ),
+            ),
+          ),
+        ),
+        child!,
+      ],
     );
   }
 }

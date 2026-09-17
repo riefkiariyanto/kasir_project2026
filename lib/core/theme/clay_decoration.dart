@@ -12,18 +12,20 @@ class ClayDecoration extends Decoration {
   ClayDecoration({
     Color? color,
     this.borderRadius = const BorderRadius.all(Radius.circular(24)),
-    this.border,
     this.sunken = false,
+    this.shadow = true,
   }) : color = color ?? AppColors.surface,
        _palette = AppColors.palette;
 
   final Color color;
   final BorderRadius borderRadius;
-  final BoxBorder? border;
 
   /// Pressed into the page instead of raised: no outer shadow, and the
   /// edge light and shade swap sides. For inputs.
   final bool sunken;
+
+  /// False when something else already casts the outer shadow.
+  final bool shadow;
 
   final ClayPalette _palette;
 
@@ -53,7 +55,7 @@ class _ClayPainter extends BoxPainter {
     final RRect rrect = decoration.borderRadius.toRRect(rect);
     final ClayPalette palette = decoration._palette;
 
-    if (!decoration.sunken) {
+    if (decoration.shadow && !decoration.sunken) {
       for (final BoxShadow shadow in palette.raisedShadows) {
         canvas.drawRRect(
           rrect.shift(shadow.offset),
@@ -76,24 +78,18 @@ class _ClayPainter extends BoxPainter {
       rect,
       rrect,
       palette.innerHighlight,
-      Offset(0, 1.5 * direction),
-      blur: 1.2,
+      Offset(0, 2 * direction),
+      blur: 1.5,
     );
     _paintInnerShadow(
       canvas,
       rect,
       rrect,
       palette.innerShade,
-      Offset(0, -2 * direction),
-      blur: 3,
+      Offset(0, -3 * direction),
+      blur: 4,
     );
     canvas.restore();
-
-    decoration.border?.paint(
-      canvas,
-      rect,
-      borderRadius: decoration.borderRadius,
-    );
   }
 
   void _paintInnerShadow(

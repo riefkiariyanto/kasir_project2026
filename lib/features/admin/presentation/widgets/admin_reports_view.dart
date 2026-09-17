@@ -483,10 +483,10 @@ class _AdminReportsViewState extends State<AdminReportsView> {
           Container(
             padding: const EdgeInsets.all(24),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
+            decoration: ClayDecoration(
+              sunken: true,
+              color: AppColors.panelSurface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.divider),
             ),
             child: Text(
               'Belum ada riwayat pinjam / transfer tunai pada periode ini',
@@ -501,7 +501,6 @@ class _AdminReportsViewState extends State<AdminReportsView> {
               decoration: ClayDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.divider),
               ),
               child: Row(
                 children: <Widget>[
@@ -822,7 +821,6 @@ class _ReportCard extends StatelessWidget {
       decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -918,7 +916,6 @@ class _ProductSalesRow extends StatelessWidget {
       decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1006,10 +1003,10 @@ class _DonutChart extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+        decoration: ClayDecoration(
+          sunken: true,
+          color: AppColors.panelSurface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.divider),
         ),
         child: Text(
           'Belum ada data untuk ditampilkan',
@@ -1027,7 +1024,6 @@ class _DonutChart extends StatelessWidget {
       decoration: ClayDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,

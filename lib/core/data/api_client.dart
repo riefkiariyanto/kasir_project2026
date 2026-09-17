@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -18,6 +19,12 @@ class ApiClient {
 
   static const String baseUrl =
       'https://backend-production-b58c.up.railway.app';
+
+  /// One client for the app's lifetime so requests reuse the open
+  /// connection instead of paying a new TLS handshake each time.
+  static final http.Client _client = http.Client();
+
+  static const Duration _timeout = Duration(seconds: 20);
 
   static String? _sessionCookie;
   static String? _sessionToken;
@@ -62,36 +69,50 @@ class ApiClient {
     return decoded;
   }
 
+  /// Turns a dead server or network into an [ApiException] the UI can show,
+  /// instead of a hang or an uncaught socket error.
+  Future<http.Response> _send(Future<http.Response> Function() request) async {
+    try {
+      return await request().timeout(_timeout);
+    } on TimeoutException {
+      throw ApiException('Server tidak merespons, coba lagi', 0);
+    } on http.ClientException {
+      throw ApiException('Tidak dapat terhubung ke server', 0);
+    }
+  }
+
   Future<dynamic> get(String path) async {
-    final http.Response response = await http.get(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers,
+    final http.Response response = await _send(
+      () => _client.get(Uri.parse('$baseUrl$path'), headers: _headers),
     );
     return _decode(response);
   }
 
   Future<dynamic> post(String path, [Map<String, dynamic>? body]) async {
-    final http.Response response = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers,
-      body: body == null ? null : jsonEncode(body),
+    final http.Response response = await _send(
+      () => _client.post(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers,
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
     return _decode(response);
   }
 
   Future<dynamic> put(String path, [Map<String, dynamic>? body]) async {
-    final http.Response response = await http.put(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers,
-      body: body == null ? null : jsonEncode(body),
+    final http.Response response = await _send(
+      () => _client.put(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers,
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
     return _decode(response);
   }
 
   Future<dynamic> delete(String path) async {
-    final http.Response response = await http.delete(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers,
+    final http.Response response = await _send(
+      () => _client.delete(Uri.parse('$baseUrl$path'), headers: _headers),
     );
     return _decode(response);
   }
@@ -124,8 +145,9 @@ class ApiClient {
         ),
       );
     }
-    final http.StreamedResponse streamed = await request.send();
-    final http.Response response = await http.Response.fromStream(streamed);
+    final http.Response response = await _send(
+      () async => http.Response.fromStream(await _client.send(request)),
+    );
     return _decode(response);
   }
 }

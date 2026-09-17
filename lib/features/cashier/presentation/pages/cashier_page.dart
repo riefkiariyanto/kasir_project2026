@@ -112,7 +112,7 @@ class _CashierPageState extends State<CashierPage> {
       final bool matchesMethod =
           _ordersFilterMethod == null || order.method == _ordersFilterMethod;
       final bool matchesSearch =
-          query.isEmpty || order.id.toLowerCase().contains(query);
+          query.isEmpty || order.invoiceNo.toLowerCase().contains(query);
       final bool matchesDate =
           _ordersFilterDate == null ||
           AppDateUtils.isSameDate(order.createdAt, _ordersFilterDate!);

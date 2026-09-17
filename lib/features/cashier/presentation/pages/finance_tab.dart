@@ -116,10 +116,10 @@ class _FinanceTabState extends State<FinanceTab> {
               Container(
                 padding: const EdgeInsets.all(24),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
+                decoration: ClayDecoration(
+                  sunken: true,
+                  color: AppColors.panelSurface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.divider),
                 ),
                 child: Text(
                   AppStrings.financeEmpty,
@@ -134,7 +134,6 @@ class _FinanceTabState extends State<FinanceTab> {
                   decoration: ClayDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Row(
                     children: <Widget>[
