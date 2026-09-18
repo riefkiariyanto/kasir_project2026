@@ -272,10 +272,12 @@ class _CashierPageState extends State<CashierPage> {
                         ? OrdersList.grid(
                             orders: _filteredOrders,
                             onRefresh: _loadOrders,
+                            requirePrintPin: true,
                           )
                         : OrdersList(
                             orders: _filteredOrders,
                             onRefresh: _loadOrders,
+                            requirePrintPin: true,
                           ),
                   ),
                 ],

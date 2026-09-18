@@ -15,6 +15,7 @@ class OrdersList extends StatelessWidget {
     this.isGrid = false,
     this.onDelete,
     this.onRefresh,
+    this.requirePrintPin = false,
   });
 
   const OrdersList.grid({
@@ -24,6 +25,7 @@ class OrdersList extends StatelessWidget {
     this.isGrid = true,
     this.onDelete,
     this.onRefresh,
+    this.requirePrintPin = false,
   });
 
   final List<Order> orders;
@@ -33,6 +35,9 @@ class OrdersList extends StatelessWidget {
 
   /// Enables swipe-down refresh when set.
   final Future<void> Function()? onRefresh;
+
+  /// Asks for the store's print PIN before reprinting a receipt.
+  final bool requirePrintPin;
 
   Widget _withRefresh(Widget list) {
     final Future<void> Function()? refresh = onRefresh;
@@ -71,8 +76,11 @@ class OrdersList extends StatelessWidget {
                     final Order order = orders[index];
                     return OrderCard(
                       order: order,
-                      onTap: () =>
-                          OrderDetailDialog.show(context, order: order),
+                      onTap: () => OrderDetailDialog.show(
+                        context,
+                        order: order,
+                        requirePrintPin: requirePrintPin,
+                      ),
                       onDelete: onDelete != null
                           ? () => onDelete!(order)
                           : null,
@@ -89,8 +97,11 @@ class OrdersList extends StatelessWidget {
                     final Order order = orders[index];
                     return OrderCard(
                       order: order,
-                      onTap: () =>
-                          OrderDetailDialog.show(context, order: order),
+                      onTap: () => OrderDetailDialog.show(
+                        context,
+                        order: order,
+                        requirePrintPin: requirePrintPin,
+                      ),
                       onDelete: onDelete != null
                           ? () => onDelete!(order)
                           : null,

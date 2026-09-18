@@ -12,6 +12,8 @@ create table if not exists store_settings (
   constraint store_settings_single_row check (id = 1)
 );
 insert into store_settings (id) values (1) on conflict (id) do nothing;
+-- PIN cetak ulang struk (bcrypt); null = cetak ulang tidak dikunci
+alter table store_settings add column if not exists print_pin_hash text;
 
 create table if not exists admins (
   id uuid primary key default gen_random_uuid(),

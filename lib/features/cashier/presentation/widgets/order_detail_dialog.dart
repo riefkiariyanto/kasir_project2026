@@ -10,14 +10,26 @@ import '../../data/cart_item.dart';
 import '../../data/order.dart';
 
 class OrderDetailDialog extends StatelessWidget {
-  const OrderDetailDialog({super.key, required this.order});
+  const OrderDetailDialog({
+    super.key,
+    required this.order,
+    this.requirePrintPin = false,
+  });
 
   final Order order;
 
-  static Future<void> show(BuildContext context, {required Order order}) {
+  /// Asks for the store's print PIN before reprinting (cashier history).
+  final bool requirePrintPin;
+
+  static Future<void> show(
+    BuildContext context, {
+    required Order order,
+    bool requirePrintPin = false,
+  }) {
     return showDialog<void>(
       context: context,
-      builder: (_) => OrderDetailDialog(order: order),
+      builder: (_) =>
+          OrderDetailDialog(order: order, requirePrintPin: requirePrintPin),
     );
   }
 
@@ -229,7 +241,7 @@ class OrderDetailDialog extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              PrintReceiptButton(order: order),
+              PrintReceiptButton(order: order, requirePin: requirePrintPin),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/data/api_client.dart';
 import '../../../../core/data/store_repository.dart';
+import '../../../../core/printing/print_pin_tile.dart';
 import '../../../../core/printing/printer_settings_tile.dart';
 import '../../../../core/printing/receipt_footer_tile.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -272,6 +273,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                   const PrinterSettingsTile(),
                   const SizedBox(height: 28),
                   const ReceiptFooterTile(),
+                  const SizedBox(height: 28),
+                  const PrintPinTile(),
                   const SizedBox(height: 28),
                   _buildTransactionSection(),
                   const SizedBox(height: 28),

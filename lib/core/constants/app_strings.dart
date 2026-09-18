@@ -104,6 +104,23 @@ abstract final class AppStrings {
   static const String passwordChanged = 'Password berhasil diubah';
   static const String save = 'Simpan';
 
+  static const String printPinTitle = 'PIN Cetak Struk';
+  static const String printPinLabel = 'PIN';
+  static const String printPinHint =
+      'Masukkan PIN cetak untuk mencetak ulang struk ini.';
+  static const String printPinWrong = 'PIN cetak salah';
+  static const String printPinConfirm = 'Cetak';
+  static const String printPinSettingsTitle = 'PIN Cetak Struk';
+  static const String printPinActive =
+      'Aktif — kasir diminta PIN saat cetak ulang';
+  static const String printPinInactive =
+      'Belum diatur — kasir bisa cetak ulang tanpa PIN';
+  static const String printPinRule =
+      'PIN 6 angka. Kosongkan untuk menonaktifkan.';
+  static const String printPinSaved = 'PIN cetak struk disimpan';
+  static const String printPinRemoved = 'PIN cetak struk dinonaktifkan';
+  static const String printPinInvalid = 'PIN harus 6 angka';
+
   static const String orderDeleteFailed = 'Gagal Menghapus Transaksi';
   static const String transactionSectionTitle = 'Transaksi';
   static const String bulkDeleteTitle = 'Hapus Transaksi Massal';

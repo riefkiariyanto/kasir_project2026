@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../data/store_repository.dart';
 import '../../features/cashier/data/order.dart';
+import 'print_pin_dialog.dart';
 import 'receipt_printer.dart';
 
 /// Full-width "Cetak Struk" button that prints [order] to the saved
@@ -11,14 +13,20 @@ class PrintReceiptButton extends StatefulWidget {
     super.key,
     required this.order,
     this.autoPrint = false,
+    this.requirePin = false,
     this.printer = const ReceiptPrinter(),
+    this.storeRepository = const StoreRepository(),
   });
 
   final Order order;
 
   /// Prints once as soon as the button appears; the button stays for reprints.
   final bool autoPrint;
+
+  /// Asks for the store's print PIN before printing (reprints by cashiers).
+  final bool requirePin;
   final ReceiptPrinter printer;
+  final StoreRepository storeRepository;
 
   @override
   State<PrintReceiptButton> createState() => _PrintReceiptButtonState();
@@ -43,6 +51,16 @@ class _PrintReceiptButtonState extends State<PrintReceiptButton> {
   }
 
   Future<void> _print() async {
+    if (widget.requirePin &&
+        !await PrintPinDialog.confirm(
+          context,
+          storeRepository: widget.storeRepository,
+        )) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _isPrinting = true;
       _message = null;
